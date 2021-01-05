@@ -100,7 +100,7 @@
 
         // Analysis && fixing
         //[Test]
-        //public async Task Test_02_Analysis_And_Fixing() {
+        //public async Task Test_01_Analysis_And_Fixing() {
         //    var analyzers = new DiagnosticAnalyzer[] { new ExampleAnalyzer0001(), new ExampleAnalyzer0002() };
         //    var diagnostics = await Analyze( Project, analyzers, default ).ConfigureAwait( false );
         //    diagnostics = diagnostics.Distinct().Where( i => i.Location != Location.None ).ToArray();
@@ -117,7 +117,7 @@
 
         // Refactoring
         [Test]
-        public async Task Test_03_Refactoring() {
+        public async Task Test_02_Refactoring() {
             var refactorer = new ExampleCodeRefactoringProvider();
             var changedProjects = await RoslynTestingUtils.Refactor( Project, refactorer, default ).ConfigureAwait( false );
             foreach (var newProject in changedProjects) {
@@ -125,6 +125,25 @@
                 var changedDocument = newProject.Documents.First();
                 //TestContext.WriteLine( "Document: " + changedDocument.Name );
                 //TestContext.WriteLine( changedDocument.GetTextAsync().Result );
+            }
+        }
+
+
+        // Generation
+        [Test]
+        public async Task Test_04_Generation() {
+            var generator = new ExampleSourceGenerator();
+            var result = await RoslynTestingUtils.GenerateAsync( Project, generator, default ).ConfigureAwait( false );
+            TestContext.WriteLine( "SourceGenerator: " + result.Generator.GetType() );
+            foreach (var source in result.GeneratedSources) {
+                TestContext.WriteLine( "Source: " + source.HintName );
+                TestContext.WriteLine( source.SourceText );
+            }
+            foreach (var diagnostic in result.Diagnostics) {
+                TestContext.WriteLine( "Diagnostic: " + diagnostic );
+            }
+            if (result.Exception != null) {
+                TestContext.WriteLine( "Exception: " + result.Exception );
             }
         }
 
