@@ -27,17 +27,11 @@ namespace RoslynExamples {
 
 
         public void Execute(GeneratorExecutionContext context) {
-            //Debugger.Launch();
-            try {
-                var syntaxReceiver = (ExampleSourceGenerator_SyntaxReceiver?) context.SyntaxReceiver ?? throw new Exception( "SyntaxReceiver is null" );
-                foreach (var unit in syntaxReceiver.Units) {
-                    var content = GetContent( unit );
-                    var name = GetName( content );
-                    if (name != null) context.AddSource( $"{name}.Generated.cs", content.NormalizeWhitespace().ToString() );
-                }
-            } catch (Exception ex) {
-                context.ReportDiagnostic( Diagnostic.Create( Rule, null, ex ) );
-                throw;
+            var syntaxReceiver = (ExampleSourceGenerator_SyntaxReceiver?) context.SyntaxReceiver ?? throw new Exception( "SyntaxReceiver is null" );
+            foreach (var unit in syntaxReceiver.Units) {
+                var content = GetContent( unit );
+                var name = GetName( content );
+                //if (name != null) context.AddSource( $"{name}.Generated.cs", content.NormalizeWhitespace().ToString() );
             }
         }
 
@@ -94,7 +88,7 @@ namespace RoslynExamples {
                 .WithModifiers( node.Modifiers )
                 .WithTypeParameterList( node.TypeParameterList )
                 .AddMembers( node.Members.OfType<MethodDeclarationSyntax>().Where( IsPartial ).ToArray() );
-                //.AddMembers( ParseMemberDeclaration( "public static string HelloWorld() => \"Hello World !!!\";" )! );
+            //.AddMembers( ParseMemberDeclaration( "public static string HelloWorld() => \"Hello World !!!\";" )! );
             return base.VisitClassDeclaration( node );
         }
         // Record

@@ -8,6 +8,12 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <Compile Update="ConsoleApp1\**\*.cs">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Compile>
+    </ItemGroup>
+
+    <ItemGroup>
         <ProjectReference Include="..\RoslynExamples\RoslynExamples.csproj">
             <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
             <OutputItemType>Analyzer</OutputItemType>

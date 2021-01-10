@@ -80,7 +80,7 @@ namespace RoslynExamples {
             //Trace.WriteLine( $"OnSymbol: {symbol.Name} ({symbol.Kind} / {node.Kind()})" );
             if (CanBeRenamed( symbol )) {
                 if (!symbol.Name.EndsWith( "_" )) {
-                    var diagnostic = Diagnostic.Create( Rule, symbol.Locations.First(), symbol.Name );
+                    var diagnostic = Diagnostic.Create( Rule, symbol.Locations.First(), symbol.Locations.Skip( 1 ), symbol.Name );
                     context.ReportDiagnostic( diagnostic );
                 }
             }
