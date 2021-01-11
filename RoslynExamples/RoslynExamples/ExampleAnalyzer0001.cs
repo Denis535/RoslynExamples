@@ -6,8 +6,6 @@ namespace RoslynExamples {
     using System;
     using System.Collections.Generic;
     using System.Collections.Immutable;
-    using System.Diagnostics;
-    using System.IO;
     using System.Linq;
     using Microsoft.CodeAnalysis;
     using Microsoft.CodeAnalysis.CSharp;
@@ -78,8 +76,8 @@ namespace RoslynExamples {
             var symbol = context.Symbol;
             //var node = context.Symbol.DeclaringSyntaxReferences.First().GetSyntax();
             //Trace.WriteLine( $"OnSymbol: {symbol.Name} ({symbol.Kind} / {node.Kind()})" );
-            if (CanBeRenamed( symbol )) {
-                if (!symbol.Name.EndsWith( "_" )) {
+            if (!symbol.Name.EndsWith( "_" )) {
+                if (CanBeRenamed( symbol )) {
                     var diagnostic = Diagnostic.Create( Rule, symbol.Locations.First(), symbol.Locations.Skip( 1 ), symbol.Name );
                     context.ReportDiagnostic( diagnostic );
                 }

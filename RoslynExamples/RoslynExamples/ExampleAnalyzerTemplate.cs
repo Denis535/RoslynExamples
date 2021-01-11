@@ -10,7 +10,7 @@ namespace RoslynExamples {
     using Microsoft.CodeAnalysis.Diagnostics;
 
     [DiagnosticAnalyzer( LanguageNames.CSharp )]
-    public class ExampleAnalyzer : DiagnosticAnalyzer {
+    public class ExampleAnalyzerTemplate : DiagnosticAnalyzer {
 
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => ImmutableArray.Create<DiagnosticDescriptor>();
 
