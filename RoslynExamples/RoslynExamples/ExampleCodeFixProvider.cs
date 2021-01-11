@@ -23,12 +23,11 @@
             var root = await context.Document.GetSyntaxRootAsync( context.CancellationToken ).ConfigureAwait( false ) ?? throw new Exception( "Syntax root not found" );
             var model = await context.Document.GetSemanticModelAsync( context.CancellationToken ).ConfigureAwait( false ) ?? throw new Exception( "Semantic model not found" );
             var symbol = GetSymbol( root, model, context.Span, context.CancellationToken );
+            if (symbol == null) return;
 
-            if (symbol != null) {
-                foreach (var diagnostic in context.Diagnostics) {
-                    if (diagnostic.Id == ExampleAnalyzer0000.Rule.Id) RegisterCodeFixesFor0000( context, diagnostic, solution, symbol );
-                    if (diagnostic.Id == ExampleAnalyzer0001.Rule.Id) RegisterCodeFixesFor0001( context, diagnostic, solution, symbol );
-                }
+            foreach (var diagnostic in context.Diagnostics) {
+                if (diagnostic.Id == ExampleAnalyzer0000.Rule.Id) RegisterCodeFixesFor0000( context, diagnostic, solution, symbol );
+                if (diagnostic.Id == ExampleAnalyzer0001.Rule.Id) RegisterCodeFixesFor0001( context, diagnostic, solution, symbol );
             }
         }
         private static void RegisterCodeFixesFor0000(CodeFixContext context, Diagnostic diagnostic, Solution solution, ISymbol symbol) {

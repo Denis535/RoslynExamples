@@ -19,6 +19,11 @@
             return string.Join( ", ", values );
         }
 
+        // StringBuilder
+        public static StringBuilder AppendLineFormat(this StringBuilder builder, string format, params string[] args) {
+            return builder.AppendFormat( format, args ).AppendLine();
+        }
+
         // Enum
         public static T[] GetEnumValues<T>() where T : Enum {
             return (T[]) Enum.GetValues( typeof( T ) );

@@ -18,17 +18,20 @@
 
 
         public sealed override async Task ComputeRefactoringsAsync(CodeRefactoringContext context) {
+            var solution = context.Document.Project.Solution;
             var root = await context.Document.GetSyntaxRootAsync( context.CancellationToken ).ConfigureAwait( false ) ?? throw new Exception( "Syntax root not found" );
             var model = await context.Document.GetSemanticModelAsync( context.CancellationToken ).ConfigureAwait( false ) ?? throw new Exception( "Semantic model not found" );
             var symbols = GetSymbols( root, model, context.Span, context.CancellationToken ).Where( CanBeRenamed ).Reverse().ToArray();
+            if (!symbols.Any()) return;
 
-            if (symbols.Any()) {
-                RegisterRefactoring( context, $"Make symbols '{symbols.Select( i => i.Name ).Join()}' start/end with underscore ({GetType().Name})", Action );
-            }
+            RegisterRefactoring( context, $"Make symbols '{symbols.Select( i => i.Name ).Join()}' start/end with underscore ({GetType().Name})", Action );
+            RegisterRefactoring( context, $"Make symbols '{symbols.Select( i => i.Name ).Join()}' start/end with double underscore ({GetType().Name})", Action2 );
 
             async Task<Solution> Action(CancellationToken cancellationToken) {
-                var solution = context.Document.Project.Solution;
                 return await WithFormattedSymbol( solution, symbols, "_{0}_", cancellationToken ).ConfigureAwait( false );
+            }
+            async Task<Solution> Action2(CancellationToken cancellationToken) {
+                return await WithFormattedSymbol( solution, symbols, "__{0}__", cancellationToken ).ConfigureAwait( false );
             }
         }
 
