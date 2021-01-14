@@ -101,8 +101,9 @@ namespace RoslynExamples {
         //}
         // Class
         public override SyntaxNode? VisitClassDeclaration(ClassDeclarationSyntax node) {
-            //var symbol = Model.GetDeclaredSymbol( node );
-            //Trace.WriteLine( symbol?.Name ?? "Null" );
+            //var @class = Model.GetDeclaredSymbol( node ); // Syntax node is not within syntax tree
+            //var members = @class!.GetMembers();
+
             node = ClassDeclaration( node.Identifier )
                 .WithModifiers( node.Modifiers )
                 .WithTypeParameterList( node.TypeParameterList );
@@ -120,15 +121,15 @@ namespace RoslynExamples {
         //}
 
         // Method
-        public override SyntaxNode? VisitMethodDeclaration(MethodDeclarationSyntax node) {
-            //node = MethodDeclaration( node.ReturnType, node.Identifier )
-            //    .WithModifiers( node.Modifiers )
-            //    .WithTypeParameterList( node.TypeParameterList )
-            //    .WithParameterList( node.ParameterList )
-            //    .WithConstraintClauses( node.ConstraintClauses )
-            //    .WithSemicolonToken( Token( SyntaxKind.SemicolonToken ) ); // only method declaration
-            return base.VisitMethodDeclaration( node );
-        }
+        //public override SyntaxNode? VisitMethodDeclaration(MethodDeclarationSyntax node) {
+        //    node = MethodDeclaration( node.ReturnType, node.Identifier )
+        //        .WithModifiers( node.Modifiers )
+        //        .WithTypeParameterList( node.TypeParameterList )
+        //        .WithParameterList( node.ParameterList )
+        //        .WithConstraintClauses( node.ConstraintClauses )
+        //        .WithSemicolonToken( Token( SyntaxKind.SemicolonToken ) ); // only method declaration
+        //    return base.VisitMethodDeclaration( node );
+        //}
 
 
         // Helpers

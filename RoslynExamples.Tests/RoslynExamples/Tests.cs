@@ -9,6 +9,8 @@
     using NUnit.Framework;
     using RoslynTesting;
 
+    [SetCulture( "en-US" )]
+    [SetUICulture( "en-US" )]
     public class Tests {
 
         private Project Project { get; set; } = default!;
@@ -85,6 +87,12 @@
             var result = await RoslynTestingUtils.GenerateAsync( Project, generator, default ).ConfigureAwait( false );
             var message = RoslynTestingUtils.Messages.GetMessage_GenerationResult( Project, result.Generator, result.GeneratedSources.ToArray(), result.Diagnostics.ToArray(), result.Exception );
             TestContext.WriteLine( message );
+            foreach (var diagnostic in result.Diagnostics) {
+                Assert.Warn( diagnostic.ToString() );
+            }
+            if (result.Exception != null) {
+                Assert.Fail( result.Exception.ToString() );
+            }
         }
 
 
