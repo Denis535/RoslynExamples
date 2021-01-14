@@ -11,18 +11,13 @@
 
     public class Tests {
 
-        // Symbols:
-        // ConsoleApp1,
-        // Program, Main, args,
-        // Class, Method, Method2, argument,
-        // Field, Field2, Prop, Prop2, Event, Event2, Event3, Func, Func2, Method, Method2, argument
         private Project Project { get; set; } = default!;
 
 
         [SetUp]
         public void SetUp() {
             Trace.Listeners.Add( new TextWriterTraceListener( TestContext.Out ) );
-            Project = RoslynTestingUtils.CreateFakeProject( RoslynTestingUtils.GetDocuments( "../../../../ConsoleApp1/", "ConsoleApp1/Program.cs", "ConsoleApp1/Class.cs" ) );
+            Project = RoslynTestingUtils.CreateFakeProject( RoslynTestingUtils.GetDocuments( "../../../../ConsoleApp1/", "ConsoleApp1/Program.cs", "ConsoleApp1/Class.cs", "ConsoleApp1/Folder/Class.cs" ) );
         }
         [TearDown]
         public void TearDown() {

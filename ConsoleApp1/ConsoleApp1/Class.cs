@@ -2,6 +2,9 @@
 #pragma warning disable CS0067 // An event was declared but never used in the class in which it was declared.
 #pragma warning disable CS0219 // Variable is assigned but its value is never used
 
+// Symbols:
+// Method, Method2, argument,
+// Field, Field2, Prop, Prop2, Event, Event2, Event3, Func, Func2, Method, Method2, argument
 namespace ConsoleApp1 {
     using System;
     using System.Collections;

@@ -34,9 +34,10 @@
                     builder.AppendLineFormat( GetDisplayString( diagnostic ) );
                 }
                 foreach (var (newProject, action) in newProjects) {
+                    //var changes = newProject.GetChanges( project );
                     builder.AppendLineFormat( "New project: {0} ({1})", newProject.Name, action.Title );
                     foreach (var newDocument in newProject.Documents) {
-                        builder.AppendLineFormat( "New document: {0}", newDocument.Name ).AppendLine( newDocument.GetTextAsync().Result.ToString().Indent( 4 ) );
+                        builder.AppendLineFormat( "New document: {0}", newDocument.Name ).AppendLine( newDocument.GetTextAsync().Result.ToString().Indent( "|  " ) );
                     }
                 }
                 return builder.ToString();
@@ -47,9 +48,10 @@
                 builder.AppendLineFormat( "Documents: {0}", project.Documents.Select( i => i.Name ).Join() );
                 builder.AppendLineFormat( "Refactorer: {0}", refactorer.GetType().Name );
                 foreach (var (newProject, action) in newProjects) {
+                    //var changes = newProject.GetChanges( project );
                     builder.AppendLineFormat( "New project: {0} ({1})", newProject.Name, action.Title );
                     foreach (var newDocument in newProject.Documents) {
-                        builder.AppendLineFormat( "New document: {0}", newDocument.Name ).AppendLine( newDocument.GetTextAsync().Result.ToString().Indent( 4 ) );
+                        builder.AppendLineFormat( "New document: {0}", newDocument.Name ).AppendLine( newDocument.GetTextAsync().Result.ToString().Indent( "|  " ) );
                     }
                 }
                 return builder.ToString();
@@ -60,7 +62,7 @@
                 builder.AppendLineFormat( "Documents: {0}", project.Documents.Select( i => i.Name ).Join() );
                 builder.AppendLineFormat( "Generator: {0}", generator.GetType().Name );
                 foreach (var source in sources) {
-                    builder.AppendLineFormat( "Source: {0}", source.HintName ).AppendLine( source.SourceText.ToString().Indent( 4 ) );
+                    builder.AppendLineFormat( "Source: {0}", source.HintName ).AppendLine( source.SourceText.ToString().Indent( "|  " ) );
                 }
                 foreach (var diagnostic in diagnostics) {
                     builder.AppendLineFormat( GetDisplayString( diagnostic ) );

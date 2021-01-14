@@ -2,6 +2,8 @@
 namespace RoslynExamples {
     using System;
     using System.Collections.Generic;
+    using System.Diagnostics;
+    using System.IO;
     using System.Linq;
     using System.Text;
     using Microsoft.CodeAnalysis;
@@ -12,54 +14,69 @@ namespace RoslynExamples {
     [Generator]
     public class ExampleSourceGenerator : ISourceGenerator {
 
-        internal static readonly DiagnosticDescriptor Rule = new DiagnosticDescriptor(
-            "ExampleSourceGenerator",
-            "ExampleSourceGenerator",
-            "Message: {0}",
-            "Example",
-            DiagnosticSeverity.Error,
-            true );
+        //internal static readonly DiagnosticDescriptor Rule = new DiagnosticDescriptor(
+        //    "ExampleSourceGenerator",
+        //    "ExampleSourceGenerator",
+        //    "Message: {0}",
+        //    "Example",
+        //    DiagnosticSeverity.Error,
+        //    true );
 
 
         public void Initialize(GeneratorInitializationContext context) {
-            context.RegisterForSyntaxNotifications( () => new ExampleSourceGenerator_SyntaxReceiver() );
+            context.RegisterForSyntaxNotifications( () => new CompilationUnitReceiver() );
         }
 
 
         public void Execute(GeneratorExecutionContext context) {
-            var syntaxReceiver = (ExampleSourceGenerator_SyntaxReceiver?) context.SyntaxReceiver ?? throw new Exception( "SyntaxReceiver is null" );
-            foreach (var unit in syntaxReceiver.Units) {
-                var content = GetContent( unit );
-                var name = GetName( content );
-                //if (name != null) context.AddSource( $"{name}.Generated.cs", content.NormalizeWhitespace().ToString() );
+            //Debugger.Launch();
+            var receiver = (CompilationUnitReceiver?) context.SyntaxReceiver ?? throw new Exception( "SyntaxReceiver is null" );
+            foreach (var unit in receiver.Units) {
+                var model = context.Compilation.GetSemanticModel( unit.SyntaxTree );
+                var name = GetSourceName( unit );
+                var content = GetSourceContent( unit, model );
+                if (content != null) {
+                    context.AddSource( name, content.NormalizeWhitespace().ToString() );
+                }
             }
         }
 
 
         // Helpers
-        private static CompilationUnitSyntax GetContent(CompilationUnitSyntax unit) {
-            return (CompilationUnitSyntax) new ExampleSourceGenerator_Rewriter().Visit( unit );
+        private static string GetSourceName(CompilationUnitSyntax unit) {
+            return Path.GetFileNameWithoutExtension( unit.SyntaxTree.FilePath ) + $".Generated.{Guid.NewGuid()}.cs";
         }
-        private static string? GetName(CompilationUnitSyntax unit) {
-            return unit.DescendantNodes().OfType<TypeDeclarationSyntax>().FirstOrDefault()?.Identifier.Text;
+        private static CompilationUnitSyntax? GetSourceContent(CompilationUnitSyntax unit, SemanticModel model) {
+            var result = (CompilationUnitSyntax) new ExampleSourceProducer( model ).Visit( unit );
+            if (result.DescendantNodes().OfType<TypeDeclarationSyntax>().Any()) return result;
+            return null;
         }
-
 
     }
 
-    class ExampleSourceGenerator_SyntaxReceiver : ISyntaxReceiver {
+    // CompilationUnitReceiver
+    class CompilationUnitReceiver : ISyntaxReceiver {
 
         public List<CompilationUnitSyntax> Units { get; } = new List<CompilationUnitSyntax>();
 
         void ISyntaxReceiver.OnVisitSyntaxNode(SyntaxNode node) {
-            if (node is CompilationUnitSyntax unit && unit.Members.Any()) {
+            if (node is CompilationUnitSyntax unit) {
                 Units.Add( unit );
             }
         }
 
     }
 
-    class ExampleSourceGenerator_Rewriter : CSharpSyntaxRewriter {
+    // ExampleSourceProducer
+    class ExampleSourceProducer : CSharpSyntaxRewriter {
+
+        private SemanticModel Model { get; set; }
+
+
+        public ExampleSourceProducer(SemanticModel model) {
+            Model = model;
+        }
+
 
         // CompilationUnit
         public override SyntaxNode? VisitCompilationUnit(CompilationUnitSyntax node) {
@@ -74,7 +91,7 @@ namespace RoslynExamples {
             node = NamespaceDeclaration( node.Name )
                 .WithExterns( node.Externs )
                 .WithUsings( node.Usings )
-                .AddMembers( node.Members.OfType<ClassDeclarationSyntax>().Where( IsPartial ).ToArray() );
+                .AddMembers( node.Members.OfType<ClassDeclarationSyntax>().Where( IsPartial ).ToArray() ); // only partial classes
             return base.VisitNamespaceDeclaration( node );
         }
 
@@ -84,10 +101,12 @@ namespace RoslynExamples {
         //}
         // Class
         public override SyntaxNode? VisitClassDeclaration(ClassDeclarationSyntax node) {
+            //var symbol = Model.GetDeclaredSymbol( node );
+            //Trace.WriteLine( symbol?.Name ?? "Null" );
             node = ClassDeclaration( node.Identifier )
                 .WithModifiers( node.Modifiers )
-                .WithTypeParameterList( node.TypeParameterList )
-                .AddMembers( node.Members.OfType<MethodDeclarationSyntax>().Where( IsPartial ).ToArray() );
+                .WithTypeParameterList( node.TypeParameterList );
+            //.AddMembers( node.Members.OfType<MethodDeclarationSyntax>().Where( IsPartial ).ToArray() ) // only partial methods
             //.AddMembers( ParseMemberDeclaration( "public static string HelloWorld() => \"Hello World !!!\";" )! );
             return base.VisitClassDeclaration( node );
         }
@@ -102,14 +121,12 @@ namespace RoslynExamples {
 
         // Method
         public override SyntaxNode? VisitMethodDeclaration(MethodDeclarationSyntax node) {
-            if (IsPartial( node )) {
-                node = MethodDeclaration( node.ReturnType, node.Identifier )
-                    .WithModifiers( node.Modifiers )
-                    .WithTypeParameterList( node.TypeParameterList )
-                    .WithParameterList( node.ParameterList )
-                    .WithConstraintClauses( node.ConstraintClauses )
-                    .WithSemicolonToken( Token( SyntaxKind.SemicolonToken ) );
-            }
+            //node = MethodDeclaration( node.ReturnType, node.Identifier )
+            //    .WithModifiers( node.Modifiers )
+            //    .WithTypeParameterList( node.TypeParameterList )
+            //    .WithParameterList( node.ParameterList )
+            //    .WithConstraintClauses( node.ConstraintClauses )
+            //    .WithSemicolonToken( Token( SyntaxKind.SemicolonToken ) ); // only method declaration
             return base.VisitMethodDeclaration( node );
         }
 
