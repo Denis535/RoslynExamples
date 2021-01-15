@@ -55,6 +55,7 @@ namespace RoslynExamples {
     }
 
     // CompilationUnitReceiver
+    // Collects CompilationUnitSyntax nodes
     class CompilationUnitReceiver : ISyntaxReceiver {
 
         public List<CompilationUnitSyntax> Units { get; } = new List<CompilationUnitSyntax>();
@@ -68,6 +69,8 @@ namespace RoslynExamples {
     }
 
     // ExampleSourceProducer
+    // Produces empty partial classes for each existing partial class (for adding new members)
+    // todo: how to add ToString() to print all symbols?
     class ExampleSourceProducer : CSharpSyntaxRewriter {
 
         private SemanticModel Model { get; set; }
@@ -95,6 +98,7 @@ namespace RoslynExamples {
             return base.VisitNamespaceDeclaration( node );
         }
 
+
         // Interface
         //public override SyntaxNode? VisitInterfaceDeclaration(InterfaceDeclarationSyntax node) {
         //    return base.VisitInterfaceDeclaration( node );
@@ -119,6 +123,7 @@ namespace RoslynExamples {
         //public override SyntaxNode? VisitStructDeclaration(StructDeclarationSyntax node) {
         //    return base.VisitStructDeclaration( node );
         //}
+
 
         // Method
         //public override SyntaxNode? VisitMethodDeclaration(MethodDeclarationSyntax node) {
