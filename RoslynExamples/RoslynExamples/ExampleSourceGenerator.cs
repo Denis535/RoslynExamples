@@ -24,17 +24,18 @@ namespace RoslynExamples {
 
 
         public void Initialize(GeneratorInitializationContext context) {
-            context.RegisterForSyntaxNotifications( () => new CompilationUnitReceiver() );
+            context.RegisterForSyntaxNotifications( () => new ExampleSyntaxReceiver() );
         }
 
 
         public void Execute(GeneratorExecutionContext context) {
             //Debugger.Launch();
-            var receiver = (CompilationUnitReceiver?) context.SyntaxReceiver ?? throw new Exception( "SyntaxReceiver is null" );
+            var receiver = (ExampleSyntaxReceiver?) context.SyntaxReceiver ?? throw new Exception( "SyntaxReceiver is null" );
+            var types = GetSymbols( receiver.Types, context.Compilation );
+
             foreach (var unit in receiver.Units) {
-                var model = context.Compilation.GetSemanticModel( unit.SyntaxTree );
                 var name = GetSourceName( unit );
-                var content = GetSourceContent( unit, model );
+                var content = GetSourceContent( unit, types );
                 if (content != null) {
                     context.AddSource( name, content.NormalizeWhitespace().ToString() );
                 }
@@ -43,42 +44,42 @@ namespace RoslynExamples {
 
 
         // Helpers
+        private static INamedTypeSymbol[] GetSymbols(IEnumerable<TypeDeclarationSyntax> types, Compilation compilation) {
+            return types.Select( i => GetSymbol( i, compilation ) ).Distinct( SymbolEqualityComparer.Default ).Cast<INamedTypeSymbol>().ToArray();
+        }
+        private static INamedTypeSymbol GetSymbol(TypeDeclarationSyntax type, Compilation compilation) {
+            var model = compilation.GetSemanticModel( type.SyntaxTree );
+            return model.GetDeclaredSymbol( type ) ?? throw new Exception( $"Symbol is not found: Node={type.Identifier}" );
+        }
         private static string GetSourceName(CompilationUnitSyntax unit) {
             return Path.GetFileNameWithoutExtension( unit.SyntaxTree.FilePath ) + $".Generated.{Guid.NewGuid()}.cs";
         }
-        private static CompilationUnitSyntax? GetSourceContent(CompilationUnitSyntax unit, SemanticModel model) {
-            var result = (CompilationUnitSyntax) new ExampleSourceProducer( model ).Visit( unit );
-            if (result.DescendantNodes().OfType<TypeDeclarationSyntax>().Any()) return result;
+        private static CompilationUnitSyntax? GetSourceContent(CompilationUnitSyntax unit, INamedTypeSymbol[] types) {
+            unit = (CompilationUnitSyntax) new ExampleSyntaxProducer().Visit( unit );
+            unit = (CompilationUnitSyntax) new ExampleSyntaxProducer2( types ).Visit( unit );
+            if (unit.DescendantNodes().OfType<TypeDeclarationSyntax>().Any()) return unit;
             return null;
         }
 
     }
 
-    // CompilationUnitReceiver
-    // Collects CompilationUnitSyntax nodes
-    class CompilationUnitReceiver : ISyntaxReceiver {
+    // ExampleSyntaxReceiver
+    // Collects syntax nodes
+    class ExampleSyntaxReceiver : ISyntaxReceiver {
 
         public List<CompilationUnitSyntax> Units { get; } = new List<CompilationUnitSyntax>();
+        public List<TypeDeclarationSyntax> Types { get; } = new List<TypeDeclarationSyntax>();
 
         void ISyntaxReceiver.OnVisitSyntaxNode(SyntaxNode node) {
-            if (node is CompilationUnitSyntax unit) {
-                Units.Add( unit );
-            }
+            if (node is CompilationUnitSyntax unit) Units.Add( unit );
+            if (node is TypeDeclarationSyntax type) Types.Add( type );
         }
 
     }
 
-    // ExampleSourceProducer
-    // Produces empty partial classes for each existing partial class (for adding new members)
-    // todo: how to add ToString() to print all symbols?
-    class ExampleSourceProducer : CSharpSyntaxRewriter {
-
-        private SemanticModel Model { get; set; }
-
-
-        public ExampleSourceProducer(SemanticModel model) {
-            Model = model;
-        }
+    // ExampleSyntaxProducer
+    // Produces empty partial classes (skeletons) for each partial class
+    class ExampleSyntaxProducer : CSharpSyntaxRewriter {
 
 
         // CompilationUnit
@@ -105,14 +106,9 @@ namespace RoslynExamples {
         //}
         // Class
         public override SyntaxNode? VisitClassDeclaration(ClassDeclarationSyntax node) {
-            //var @class = Model.GetDeclaredSymbol( node ); // Syntax node is not within syntax tree
-            //var members = @class!.GetMembers();
-
             node = ClassDeclaration( node.Identifier )
                 .WithModifiers( node.Modifiers )
                 .WithTypeParameterList( node.TypeParameterList );
-            //.AddMembers( node.Members.OfType<MethodDeclarationSyntax>().Where( IsPartial ).ToArray() ) // only partial methods
-            //.AddMembers( ParseMemberDeclaration( "public static string HelloWorld() => \"Hello World !!!\";" )! );
             return base.VisitClassDeclaration( node );
         }
         // Record
@@ -144,6 +140,38 @@ namespace RoslynExamples {
         private static bool IsPartial(MethodDeclarationSyntax node) {
             return node.Modifiers.Any( i => i.Kind() == SyntaxKind.PartialKeyword );
         }
+
+
+    }
+
+    // ExampleSyntaxProducer
+    // todo: how to get INamedTypeSymbol for ClassDeclarationSyntax?
+    class ExampleSyntaxProducer2 : CSharpSyntaxRewriter {
+
+        private INamedTypeSymbol[] Types { get; set; }
+
+        public ExampleSyntaxProducer2(INamedTypeSymbol[] types) {
+            Types = types;
+        }
+
+
+        // Interface
+        //public override SyntaxNode? VisitInterfaceDeclaration(InterfaceDeclarationSyntax node) {
+        //    return base.VisitInterfaceDeclaration( node );
+        //}
+        // Class
+        public override SyntaxNode? VisitClassDeclaration(ClassDeclarationSyntax node) {
+            //node = node.AddMembers( ParseMemberDeclaration( "public static string HelloWorld() => \"Hello World !!!\";" )! );
+            return base.VisitClassDeclaration( node );
+        }
+        // Record
+        //public override SyntaxNode? VisitRecordDeclaration(RecordDeclarationSyntax node) {
+        //    return base.VisitRecordDeclaration( node );
+        //}
+        // Struct
+        //public override SyntaxNode? VisitStructDeclaration(StructDeclarationSyntax node) {
+        //    return base.VisitStructDeclaration( node );
+        //}
 
 
     }

@@ -1,7 +1,7 @@
 ﻿// Symbols:
 // ConsoleApp1,
 // Program, Main, args,
-// Class<T>
+// Class<T>,
 namespace ConsoleApp1 {
     using System;
     using System.Collections;

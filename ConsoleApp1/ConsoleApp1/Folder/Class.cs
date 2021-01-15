@@ -3,7 +3,7 @@
 #pragma warning disable CS0219 // Variable is assigned but its value is never used
 
 // Symbols:
-// Class
+// Class,
 namespace ConsoleApp1 {
     using System;
     using System.Collections;
