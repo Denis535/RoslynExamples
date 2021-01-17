@@ -10,6 +10,7 @@ namespace RoslynExamples {
     using Microsoft.CodeAnalysis.CSharp;
     using Microsoft.CodeAnalysis.Diagnostics;
 
+    // Note: Code fixes don't support project-level diagnostic (without location)
     [DiagnosticAnalyzer( LanguageNames.CSharp )]
     public class ExampleAnalyzer0002 : DiagnosticAnalyzer {
 
@@ -25,7 +26,6 @@ namespace RoslynExamples {
 
 
         public override void Initialize(AnalysisContext context) {
-            //Trace.WriteLine( GetType().Name );
             context.ConfigureGeneratedCodeAnalysis( GeneratedCodeAnalysisFlags.None );
             context.EnableConcurrentExecution();
 
@@ -51,9 +51,7 @@ namespace RoslynExamples {
             context.RegisterCompilationEndAction( OnCompilation_End );
         }
         private static void OnCompilation(CompilationAnalysisContext context) {
-            // Note: project-level diagnostic (without location) can't have code fixes
             var compilation = context.Compilation;
-            //Trace.WriteLine( "OnCompilation: " + context.Compilation.AssemblyName );
             if (!compilation.AssemblyName!.EndsWith( "_" ) || !compilation.AssemblyName!.StartsWith( "_" )) {
                 var diagnostic = Diagnostic.Create( Rule, null, compilation.AssemblyName );
                 context.ReportDiagnostic( diagnostic );
@@ -65,11 +63,9 @@ namespace RoslynExamples {
 
         // Actions/SyntaxTree
         private static void OnSyntaxTree(SyntaxTreeAnalysisContext context) {
-            //Trace.WriteLine( "OnSyntaxTree: " + Path.GetFileName( context.Tree.FilePath ) );
         }
         // Actions/SemanticModel
         private static void OnSemanticModel(SemanticModelAnalysisContext context) {
-            //Trace.WriteLine( "OnSemanticModel: " + Path.GetFileName( context.SemanticModel.SyntaxTree.FilePath ) );
         }
 
 

@@ -1,14 +1,15 @@
 ﻿// Symbols:
 // ConsoleApp1,
 // Program, Main, args,
-// Class<T>,
+// Class,
+// SubClass
 namespace ConsoleApp1 {
     using System;
     using System.Collections;
     using System.Collections.Generic;
     using System.Text;
 
-    public static class Program {
+    public static partial class Program {
 
         public static void Main(string[] args) {
             Console.WriteLine( "Press Any Key To Exit..." );
@@ -16,6 +17,8 @@ namespace ConsoleApp1 {
         }
 
     }
-    public partial class Class<T> {
+    internal partial class Class {
+        private partial class SubClass {
+        }
     }
 }

@@ -19,7 +19,7 @@
         [SetUp]
         public void SetUp() {
             Trace.Listeners.Add( new TextWriterTraceListener( TestContext.Out ) );
-            Project = RoslynTestingUtils.CreateFakeProject( RoslynTestingUtils.GetDocuments( "../../../../ConsoleApp1/", "ConsoleApp1/Program.cs", "ConsoleApp1/Class.cs", "ConsoleApp1/Folder/Class.cs" ) );
+            Project = RoslynTestingUtils.CreateFakeProject( RoslynTestingUtils.GetDocuments( "../../../../ConsoleApp1/", "ConsoleApp1/Program.cs", "ConsoleApp1/Class.cs" ) );
         }
         [TearDown]
         public void TearDown() {

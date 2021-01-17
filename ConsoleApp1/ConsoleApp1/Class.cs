@@ -4,6 +4,8 @@
 
 // Symbols:
 // ConsoleApp1,
+// Class
+// SubClass
 // Class<T>, Method, Method2, argument,
 // Class<T>, Field, Field2, Prop, Prop2, Event, Event2, Event3, Func, Func2, Method, Method2, argument,
 namespace ConsoleApp1 {
@@ -11,6 +13,11 @@ namespace ConsoleApp1 {
     using System.Collections;
     using System.Collections.Generic;
     using System.Text;
+
+    internal partial class Class {
+        private partial class SubClass {
+        }
+    }
 
     public partial class Class<T> {
         public static partial void Method();

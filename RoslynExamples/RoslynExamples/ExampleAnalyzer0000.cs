@@ -26,7 +26,6 @@ namespace RoslynExamples {
 
 
         public override void Initialize(AnalysisContext context) {
-            //Trace.WriteLine( GetType().Name );
             context.ConfigureGeneratedCodeAnalysis( GeneratedCodeAnalysisFlags.None );
             context.EnableConcurrentExecution();
 
@@ -52,7 +51,6 @@ namespace RoslynExamples {
             context.RegisterCompilationEndAction( OnCompilation_End );
         }
         private static void OnCompilation(CompilationAnalysisContext context) {
-            //Trace.WriteLine( "OnCompilation: " + context.Compilation.AssemblyName );
         }
         private static void OnCompilation_End(CompilationAnalysisContext context) {
         }
@@ -60,11 +58,9 @@ namespace RoslynExamples {
 
         // Actions/SyntaxTree
         private static void OnSyntaxTree(SyntaxTreeAnalysisContext context) {
-            //Trace.WriteLine( "OnSyntaxTree: " + Path.GetFileName( context.Tree.FilePath ) );
         }
         // Actions/SemanticModel
         private static void OnSemanticModel(SemanticModelAnalysisContext context) {
-            //Trace.WriteLine( "OnSemanticModel: " + Path.GetFileName( context.SemanticModel.SyntaxTree.FilePath ) );
         }
 
 
@@ -74,13 +70,11 @@ namespace RoslynExamples {
         }
         private static void OnSymbol(SymbolAnalysisContext context) { // for specific SymbolKind list
             var symbol = context.Symbol;
-            //var node = context.Symbol.DeclaringSyntaxReferences.First().GetSyntax();
-            //Trace.WriteLine( $"OnSymbol: {symbol.Name} ({symbol.Kind} / {node.Kind()})" );
+            if (!symbol.CanBeRenamed()) return;
+
             if (!symbol.Name.StartsWith( "_" )) {
-                if (CanBeRenamed( symbol )) {
-                    var diagnostic = Diagnostic.Create( Rule, symbol.Locations.First(), symbol.Locations.Skip( 1 ), symbol.Name );
-                    context.ReportDiagnostic( diagnostic );
-                }
+                var diagnostic = Diagnostic.Create( Rule, symbol.Locations.First(), symbol.Locations.Skip( 1 ), symbol.Name );
+                context.ReportDiagnostic( diagnostic );
             }
         }
         private static void OnSymbol_End(SymbolAnalysisContext context) { // for specific SymbolKind
@@ -92,9 +86,6 @@ namespace RoslynExamples {
             context.RegisterCodeBlockEndAction( OnCodeBlock_End );
         }
         private static void OnCodeBlock(CodeBlockAnalysisContext context) {
-            //Trace.WriteLine( "OnCodeBlock: " + context.CodeBlock.Kind() );
-            //Trace.WriteLine( context.CodeBlock.ToString().Indent( 8 ) );
-            //Trace.WriteLine( "" );
         }
         private static void OnCodeBlock_End(CodeBlockAnalysisContext context) {
         }
@@ -102,15 +93,6 @@ namespace RoslynExamples {
 
         // Actions/SyntaxNode
         private static void OnSyntaxNode(SyntaxNodeAnalysisContext context) { // for specific SyntaxKind list
-            //Trace.WriteLine( "OnSyntaxNode: " + context.Node.Kind() );
-            //Trace.WriteLine( context.Node.ToString().Indent( 8 ) );
-            //Trace.WriteLine( "" );
-        }
-
-
-        // Helpers/Symbol
-        private static bool CanBeRenamed(ISymbol symbol) {
-            return symbol.CanBeReferencedByName && !symbol.IsImplicitlyDeclared && symbol.Locations.First().IsInSource;
         }
 
 

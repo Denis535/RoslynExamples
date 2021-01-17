@@ -24,18 +24,17 @@ namespace RoslynExamples {
 
 
         public void Initialize(GeneratorInitializationContext context) {
-            context.RegisterForSyntaxNotifications( () => new ExampleSyntaxReceiver() );
+            context.RegisterForSyntaxNotifications( new ExampleSyntaxReceiver() );
         }
 
 
         public void Execute(GeneratorExecutionContext context) {
             //Debugger.Launch();
             var receiver = (ExampleSyntaxReceiver?) context.SyntaxReceiver ?? throw new Exception( "SyntaxReceiver is null" );
-            var types = GetSymbols( receiver.Types, context.Compilation );
-
             foreach (var unit in receiver.Units) {
+                var model = context.Compilation.GetSemanticModel( unit.SyntaxTree );
                 var name = GetSourceName( unit );
-                var content = GetSourceContent( unit, types );
+                var content = GetSourceContent( unit, model );
                 if (content != null) {
                     context.AddSource( name, content.NormalizeWhitespace().ToString() );
                 }
@@ -44,42 +43,75 @@ namespace RoslynExamples {
 
 
         // Helpers
-        private static INamedTypeSymbol[] GetSymbols(IEnumerable<TypeDeclarationSyntax> types, Compilation compilation) {
-            return types.Select( i => GetSymbol( i, compilation ) ).Distinct( SymbolEqualityComparer.Default ).Cast<INamedTypeSymbol>().ToArray();
-        }
-        private static INamedTypeSymbol GetSymbol(TypeDeclarationSyntax type, Compilation compilation) {
-            var model = compilation.GetSemanticModel( type.SyntaxTree );
-            return model.GetDeclaredSymbol( type ) ?? throw new Exception( $"Symbol is not found: Node={type.Identifier}" );
-        }
         private static string GetSourceName(CompilationUnitSyntax unit) {
             return Path.GetFileNameWithoutExtension( unit.SyntaxTree.FilePath ) + $".Generated.{Guid.NewGuid()}.cs";
         }
-        private static CompilationUnitSyntax? GetSourceContent(CompilationUnitSyntax unit, INamedTypeSymbol[] types) {
-            unit = (CompilationUnitSyntax) new ExampleSyntaxProducer().Visit( unit );
-            unit = (CompilationUnitSyntax) new ExampleSyntaxProducer2( types ).Visit( unit );
+        private static CompilationUnitSyntax? GetSourceContent(CompilationUnitSyntax unit, SemanticModel model) {
+            unit = (CompilationUnitSyntax) new ExampleSyntaxProducer0( model ).Visit( unit );
+            unit = (CompilationUnitSyntax) new ExampleSyntaxProducer1().Visit( unit );
+            unit = (CompilationUnitSyntax) new ExampleSyntaxProducer2().Visit( unit );
             if (unit.DescendantNodes().OfType<TypeDeclarationSyntax>().Any()) return unit;
             return null;
         }
 
+
     }
 
-    // ExampleSyntaxReceiver
-    // Collects syntax nodes
+    // Collect syntax nodes
     class ExampleSyntaxReceiver : ISyntaxReceiver {
 
         public List<CompilationUnitSyntax> Units { get; } = new List<CompilationUnitSyntax>();
-        public List<TypeDeclarationSyntax> Types { get; } = new List<TypeDeclarationSyntax>();
 
         void ISyntaxReceiver.OnVisitSyntaxNode(SyntaxNode node) {
             if (node is CompilationUnitSyntax unit) Units.Add( unit );
-            if (node is TypeDeclarationSyntax type) Types.Add( type );
         }
 
     }
 
-    // ExampleSyntaxProducer
-    // Produces empty partial classes (skeletons) for each partial class
-    class ExampleSyntaxProducer : CSharpSyntaxRewriter {
+    // Initialize syntax tree with annotations
+    class ExampleSyntaxProducer0 : CSharpSyntaxRewriter {
+
+        private SemanticModel Model { get; set; } = default!;
+
+        public ExampleSyntaxProducer0(SemanticModel model) {
+            Model = model;
+        }
+
+
+        // Interface
+        //public override SyntaxNode? VisitInterfaceDeclaration(InterfaceDeclarationSyntax node) {
+        //    return base.VisitInterfaceDeclaration( node );
+        //}
+        // Class
+        public override SyntaxNode? VisitClassDeclaration(ClassDeclarationSyntax node) {
+            var type = Model.GetDeclaredSymbol( node )!; // Get symbol of ORIGINAL node
+            var members = type.GetMembers().Where( i => i.Kind != SymbolKind.NamedType ).Where( i => i.CanBeReferencedByName ).Where( i => !i.IsImplicitlyDeclared ).ToArray();
+            node = (ClassDeclarationSyntax) base.VisitClassDeclaration( node )!; // Pass ORIGINAL node
+            return node.WithAdditionalAnnotations( GetAnnotations( type, members ) );
+        }
+        // Record
+        //public override SyntaxNode? VisitRecordDeclaration(RecordDeclarationSyntax node) {
+        //    return base.VisitRecordDeclaration( node );
+        //}
+        // Struct
+        //public override SyntaxNode? VisitStructDeclaration(StructDeclarationSyntax node) {
+        //    return base.VisitStructDeclaration( node );
+        //}
+
+
+        // Helpers
+        private static IEnumerable<SyntaxAnnotation> GetAnnotations(INamedTypeSymbol type, ISymbol[] members) {
+            yield return new SyntaxAnnotation( "Type", type.Name );
+            foreach (var member in members) {
+                yield return new SyntaxAnnotation( "Type.Member", member.Name );
+            }
+        }
+
+
+    }
+
+    // Produce empty partial classes (skeletons) for future processing
+    class ExampleSyntaxProducer1 : CSharpSyntaxRewriter {
 
 
         // CompilationUnit
@@ -87,7 +119,8 @@ namespace RoslynExamples {
             node = CompilationUnit()
                 .WithExterns( node.Externs )
                 .WithUsings( node.Usings )
-                .AddMembers( node.Members.ToArray() );
+                .AddMembers( node.Members.OfType<ClassDeclarationSyntax>().Where( CodeAnalysisUtils.IsPartial ).ToArray() )
+                .AddMembers( node.Members.OfType<NamespaceDeclarationSyntax>().ToArray() );
             return base.VisitCompilationUnit( node );
         }
         // Namespace
@@ -95,7 +128,7 @@ namespace RoslynExamples {
             node = NamespaceDeclaration( node.Name )
                 .WithExterns( node.Externs )
                 .WithUsings( node.Usings )
-                .AddMembers( node.Members.OfType<ClassDeclarationSyntax>().Where( IsPartial ).ToArray() ); // only partial classes
+                .AddMembers( node.Members.OfType<ClassDeclarationSyntax>().Where( CodeAnalysisUtils.IsPartial ).ToArray() );
             return base.VisitNamespaceDeclaration( node );
         }
 
@@ -108,7 +141,9 @@ namespace RoslynExamples {
         public override SyntaxNode? VisitClassDeclaration(ClassDeclarationSyntax node) {
             node = ClassDeclaration( node.Identifier )
                 .WithModifiers( node.Modifiers )
-                .WithTypeParameterList( node.TypeParameterList );
+                .WithTypeParameterList( node.TypeParameterList )
+                .AddMembers( node.Members.OfType<ClassDeclarationSyntax>().Where( CodeAnalysisUtils.IsPartial ).ToArray() )
+                .CopyAnnotationsFrom( node );
             return base.VisitClassDeclaration( node );
         }
         // Record
@@ -128,31 +163,24 @@ namespace RoslynExamples {
         //        .WithTypeParameterList( node.TypeParameterList )
         //        .WithParameterList( node.ParameterList )
         //        .WithConstraintClauses( node.ConstraintClauses )
-        //        .WithSemicolonToken( Token( SyntaxKind.SemicolonToken ) ); // only method declaration
+        //        .WithSemicolonToken( Token( SyntaxKind.SemicolonToken ) );
         //    return base.VisitMethodDeclaration( node );
         //}
 
 
         // Helpers
-        private static bool IsPartial(ClassDeclarationSyntax node) {
-            return node.Modifiers.Any( i => i.Kind() == SyntaxKind.PartialKeyword );
-        }
-        private static bool IsPartial(MethodDeclarationSyntax node) {
-            return node.Modifiers.Any( i => i.Kind() == SyntaxKind.PartialKeyword );
-        }
+        //private static bool IsPartial(ClassDeclarationSyntax node) {
+        //    return node.Modifiers.Any( i => i.Kind() == SyntaxKind.PartialKeyword );
+        //}
+        //private static bool IsPartial(MethodDeclarationSyntax node) {
+        //    return node.Modifiers.Any( i => i.Kind() == SyntaxKind.PartialKeyword );
+        //}
 
 
     }
 
-    // ExampleSyntaxProducer
-    // todo: how to get INamedTypeSymbol for ClassDeclarationSyntax?
+    // Produce partial classes with additional methods
     class ExampleSyntaxProducer2 : CSharpSyntaxRewriter {
-
-        private INamedTypeSymbol[] Types { get; set; }
-
-        public ExampleSyntaxProducer2(INamedTypeSymbol[] types) {
-            Types = types;
-        }
 
 
         // Interface
@@ -161,7 +189,9 @@ namespace RoslynExamples {
         //}
         // Class
         public override SyntaxNode? VisitClassDeclaration(ClassDeclarationSyntax node) {
-            //node = node.AddMembers( ParseMemberDeclaration( "public static string HelloWorld() => \"Hello World !!!\";" )! );
+            var type = node.GetAnnotations( "Type" ).Single()!.Data!;
+            var members = node.GetAnnotations( "Type.Member" ).Select( i => i.Data! ).ToArray();
+            node = node.AddMembers( GetSyntax_ToString( type, members ) );
             return base.VisitClassDeclaration( node );
         }
         // Record
@@ -172,6 +202,27 @@ namespace RoslynExamples {
         //public override SyntaxNode? VisitStructDeclaration(StructDeclarationSyntax node) {
         //    return base.VisitStructDeclaration( node );
         //}
+
+
+        // Helpers
+        private static MethodDeclarationSyntax GetSyntax_ToString(string type, string[] members) {
+            var builder = new StringBuilder();
+            builder.AppendLine( "public override string ToString() {" );
+            {
+                builder.AppendLineFormat( "return \"{0}\";", GetDisplayString( type, members ) );
+            }
+            builder.AppendLine( "}" );
+            return (MethodDeclarationSyntax) ParseMemberDeclaration( builder.ToString() )!;
+        }
+        private static string GetDisplayString(string type, string[] members) {
+            var text = new StringBuilder();
+            text.AppendFormat( "Type: {0}", type );
+            if (members.Any()) {
+                text.Append( ", " );
+                text.AppendFormat( "Members: {0}", members.Join() );
+            }
+            return text.ToString();
+        }
 
 
     }

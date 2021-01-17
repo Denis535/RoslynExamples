@@ -16,7 +16,6 @@ namespace RoslynExamples {
 
 
         public override void Initialize(AnalysisContext context) {
-            //Trace.WriteLine( GetType().Name );
             context.ConfigureGeneratedCodeAnalysis( GeneratedCodeAnalysisFlags.None );
             context.EnableConcurrentExecution();
 
