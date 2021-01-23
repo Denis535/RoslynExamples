@@ -67,6 +67,19 @@
         }
 
 
+        public static string GetMessage_ControlFlowAnalysis(ControlFlowAnalysis analysis, BlockSyntax syntax) {
+            var builder = new StringBuilder();
+            builder.AppendLineFormat( "ControlFlowAnalysis: {0}", syntax.Parent!.Kind().ToString() );
+
+            builder.AppendLineFormat( "Start Point Is Reachable: {0}", analysis.StartPointIsReachable.ToString() );
+            builder.AppendLineFormat( "End Point Is Reachable: {0}", analysis.EndPointIsReachable.ToString() );
+
+            builder.AppendLineFormat( "Entry Points: {0}", analysis.EntryPoints.GetDisplayString() );
+            builder.AppendLineFormat( "Exit Points: {0}", analysis.ExitPoints.GetDisplayString() );
+
+            builder.AppendLineFormat( "Return Statements: {0}", analysis.ReturnStatements.GetDisplayString() );
+            return builder.ToString();
+        }
         public static string GetMessage_DataFlowAnalysis(DataFlowAnalysis analysis, BlockSyntax syntax) {
             var builder = new StringBuilder();
             builder.AppendLineFormat( "DataFlowAnalysis: {0}", syntax.Parent!.Kind().ToString() );
@@ -135,6 +148,9 @@
         }
         private static string GetDisplayString(this SourceText document) {
             return document.ToString().Indent( "|  " );
+        }
+        private static string GetDisplayString(this IImmutableList<SyntaxNode> values) {
+            return values.Select( i => i.Kind().ToString() ).Join();
         }
         private static string GetDisplayString(this IImmutableList<ISymbol> values) {
             return values.Select( i => i.Name ).Join();

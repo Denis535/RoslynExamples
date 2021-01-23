@@ -44,13 +44,15 @@
 
 
         // ControlFlowAnalysis
-        //[Test]
-        //public async Task Test_01_ControlFlowAnalysis() {
-        //    var document = Project.Documents.First();
-        //    var syntax = await document.GetSyntaxRootAsync().ConfigureAwait( false );
-        //    var model = await document.GetSemanticModelAsync().ConfigureAwait( false );
-        //    var controlFlow = model!.AnalyzeControlFlow( syntax! );
-        //}
+        [Test]
+        public async Task Test_01_ControlFlowAnalysis() {
+            var document = Project.Documents.Where( i => i.Name == "ConsoleApp1/Program.cs" ).Single();
+            var model = await document.GetSemanticModelAsync().ConfigureAwait( false );
+            var root = await document.GetSyntaxRootAsync().ConfigureAwait( false );
+            var method = root!.DescendantNodes().OfType<MethodDeclarationSyntax>().Single( i => i.Identifier.Text == "ControlFlowExample" );
+            var message = RoslynTestingMessages.GetMessage_ControlFlowAnalysis( model!.AnalyzeControlFlow( method.Body! )!, method.Body! );
+            TestContext.WriteLine( message );
+        }
 
 
         // DataFlowAnalysis
