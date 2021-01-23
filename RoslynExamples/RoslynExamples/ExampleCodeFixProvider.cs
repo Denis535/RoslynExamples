@@ -16,9 +16,9 @@
 
         public sealed override async Task RegisterCodeFixesAsync(CodeFixContext context) {
             var solution = context.Document.Project.Solution;
-            var root = await context.Document.GetSyntaxRootAsync( context.CancellationToken ).ConfigureAwait( false ) ?? throw new Exception( "Syntax root is not found" );
             var model = await context.Document.GetSemanticModelAsync( context.CancellationToken ).ConfigureAwait( false ) ?? throw new Exception( "Semantic model is not found" );
-            var symbol = CodeAnalysisUtils.GetSymbol( root, model, context.Span, context.CancellationToken );
+            var root = await context.Document.GetSyntaxRootAsync( context.CancellationToken ).ConfigureAwait( false ) ?? throw new Exception( "Syntax root is not found" );
+            var symbol = CodeAnalysisUtils.GetSymbol( model, root, context.Span, context.CancellationToken );
             if (symbol == null) return;
 
             foreach (var diagnostic in context.Diagnostics) {

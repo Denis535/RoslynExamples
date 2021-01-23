@@ -10,7 +10,7 @@
 
     [SetCulture( "en-US" )]
     [SetUICulture( "en-US" )]
-    public class Tests_02_Workspaces {
+    public class Tests_01_Workspaces {
 
         private Project Project { get; set; } = default!;
 

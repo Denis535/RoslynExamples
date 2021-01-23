@@ -16,9 +16,9 @@
 
         public sealed override async Task ComputeRefactoringsAsync(CodeRefactoringContext context) {
             var solution = context.Document.Project.Solution;
-            var root = await context.Document.GetSyntaxRootAsync( context.CancellationToken ).ConfigureAwait( false ) ?? throw new Exception( "Syntax root is not found" );
             var model = await context.Document.GetSemanticModelAsync( context.CancellationToken ).ConfigureAwait( false ) ?? throw new Exception( "Semantic model is not found" );
-            var symbols = CodeAnalysisUtils.GetSymbols( root, model, context.Span, context.CancellationToken ).Where( CodeAnalysisUtils.CanBeRenamed ).Reverse().ToArray();
+            var root = await context.Document.GetSyntaxRootAsync( context.CancellationToken ).ConfigureAwait( false ) ?? throw new Exception( "Syntax root is not found" );
+            var symbols = CodeAnalysisUtils.GetSymbols( model, root, context.Span, context.CancellationToken ).Where( CodeAnalysisUtils.CanBeRenamed ).Reverse().ToArray();
             if (!symbols.Any()) return;
 
             context.RegisterRefactoring( $"Make symbols '{symbols.Select( i => i.Name ).Join()}' start/end with underscore ({GetType().Name})", Action );

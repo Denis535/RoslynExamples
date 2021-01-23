@@ -12,7 +12,7 @@
 
     [SetCulture( "en-US" )]
     [SetUICulture( "en-US" )]
-    public class Tests_01_CodeAnalysis {
+    public class Tests_00_CodeAnalysis {
 
         private Project Project { get; set; } = default!;
 
