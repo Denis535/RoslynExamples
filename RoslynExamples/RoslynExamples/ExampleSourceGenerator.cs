@@ -11,7 +11,7 @@ namespace RoslynExamples {
     using Microsoft.CodeAnalysis.CSharp.Syntax;
     using static Microsoft.CodeAnalysis.CSharp.SyntaxFactory;
 
-    [Generator]
+    //[Generator]
     public class ExampleSourceGenerator : ISourceGenerator {
 
         //internal static readonly DiagnosticDescriptor Rule = new DiagnosticDescriptor(
@@ -209,12 +209,12 @@ namespace RoslynExamples {
             var builder = new StringBuilder();
             builder.AppendLine( "public override string ToString() {" );
             {
-                builder.AppendLineFormat( "return \"{0}\";", GetDisplayString( type, members ) );
+                builder.AppendLineFormat( "return \"{0}\";", GetString( type, members ) );
             }
             builder.AppendLine( "}" );
             return (MethodDeclarationSyntax) ParseMemberDeclaration( builder.ToString() )!;
         }
-        private static string GetDisplayString(string type, string[] members) {
+        private static string GetString(string type, string[] members) {
             var text = new StringBuilder();
             text.AppendFormat( "Type: {0}", type );
             if (members.Any()) {

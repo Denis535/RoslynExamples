@@ -1,4 +1,4 @@
-﻿namespace RoslynTesting {
+﻿namespace Microsoft.CodeAnalysis {
     using System;
     using System.Collections.Generic;
     using System.Collections.Immutable;
@@ -13,38 +13,45 @@
     using Microsoft.CodeAnalysis.CodeRefactorings;
     using Microsoft.CodeAnalysis.CSharp;
     using Microsoft.CodeAnalysis.Diagnostics;
+    using Microsoft.CodeAnalysis.Text;
 
-    public static partial class RoslynTestingUtils {
+    public static class RoslynTestingUtils {
 
 
-        // Initialization
-        public static Project CreateFakeProject(string name, string content) {
-            return new AdhocWorkspace()
-                .AddSolution( SolutionInfo.Create( SolutionId.CreateNewId(), VersionStamp.Create(), null, null, null ) )
-                .AddProject( "FakeProject", "FakeProject", LanguageNames.CSharp )
-                .AddMetadataReference( MetadataReference.CreateFromFile( typeof( object ).Assembly.Location ) )
-                .AddDocument( name, content ).Project;
-        }
-        public static Project CreateFakeProject((string name, string content)[] documents) {
-            var project = new AdhocWorkspace()
-                .AddSolution( SolutionInfo.Create( SolutionId.CreateNewId(), VersionStamp.Create(), null, null, null ) )
-                .AddProject( "FakeProject", "FakeProject", LanguageNames.CSharp )
-                .AddMetadataReference( MetadataReference.CreateFromFile( typeof( object ).Assembly.Location ) );
-            foreach (var (name, content) in documents) {
+        // Initialization/Project
+        public static Project CreateFakeProject((SourceText content, string name)[] documents) {
+            var project = CreateFakeProject();
+            foreach (var (content, name) in documents) {
                 project = project.AddDocument( name, content ).Project;
             }
             return project;
         }
-        public static (string name, string content)[] GetDocuments(string directory, params string[] names) {
-            return names
-                .Select( i => (Name: i, Path: Path.Combine( directory, i )) )
-                .Select( i => (i.Name, File.ReadAllText( i.Path )) )
-                .ToArray();
+        public static Project CreateFakeProject() {
+            var mscorlib = MetadataReference.CreateFromFile( typeof( object ).Assembly.Location );
+            return new AdhocWorkspace()
+                .AddSolution( SolutionInfo.Create( SolutionId.CreateNewId(), VersionStamp.Create(), null, null, null ) )
+                .AddProject( "FakeProject", "FakeProject", LanguageNames.CSharp )
+                .WithCompilationOptions( new CSharpCompilationOptions( OutputKind.ConsoleApplication ) )
+                .AddMetadataReference( mscorlib );
         }
-        public static (string name, string content)[] GetDocuments(string directory, string searchPattern = "*.*", SearchOption searchOption = SearchOption.TopDirectoryOnly) {
-            return new DirectoryInfo( directory )
-                .EnumerateFiles( searchPattern, searchOption )
-                .Select( i => (i.Name, File.ReadAllText( i.FullName )) ).ToArray();
+        // Initialization/Compilation
+        public static CSharpCompilation CreateFakeCompilation(SourceText[] contents) {
+            return CreateFakeCompilation()
+                .AddSyntaxTrees( contents.Select( i => CSharpSyntaxTree.ParseText( i ) ) );
+        }
+        public static CSharpCompilation CreateFakeCompilation() {
+            var mscorlib = MetadataReference.CreateFromFile( typeof( object ).Assembly.Location );
+            return CSharpCompilation.Create( "FakeCompilation" )
+                .WithOptions( new CSharpCompilationOptions( OutputKind.ConsoleApplication ) )
+                .WithReferences( mscorlib );
+        }
+        // Initialization/Utils
+        public static IEnumerable<(SourceText Text, string Name)> GetDocuments(string directory, params string[] names) {
+            foreach (var name in names) {
+                var path = Path.Combine( directory, name );
+                var text = File.ReadAllText( path );
+                yield return (SourceText.From( text ), name);
+            }
         }
 
 
@@ -91,8 +98,7 @@
         public static async Task<GeneratorRunResult> GenerateAsync(Project project, ISourceGenerator generator, CancellationToken cancellationToken) {
             var driver = GetGeneratorDriver( project, generator );
             var compilation = await project.GetCompilationAsync( cancellationToken ).ConfigureAwait( false ) ?? throw new Exception( "Compilation is not found" );
-            driver = (CSharpGeneratorDriver) driver.RunGenerators( compilation, cancellationToken );
-            return driver.GetRunResult().Results.Single();
+            return driver.RunGenerators( compilation, cancellationToken ).GetRunResult().Results.Single();
         }
 
 

@@ -7,11 +7,10 @@
     using Microsoft.CodeAnalysis;
     using Microsoft.CodeAnalysis.Diagnostics;
     using NUnit.Framework;
-    using RoslynTesting;
 
     [SetCulture( "en-US" )]
     [SetUICulture( "en-US" )]
-    public class Tests {
+    public class Tests_02_Workspaces {
 
         private Project Project { get; set; } = default!;
 
@@ -19,7 +18,7 @@
         [SetUp]
         public void SetUp() {
             Trace.Listeners.Add( new TextWriterTraceListener( TestContext.Out ) );
-            Project = RoslynTestingUtils.CreateFakeProject( RoslynTestingUtils.GetDocuments( "../../../../ConsoleApp1/", "ConsoleApp1/Program.cs", "ConsoleApp1/Class.cs" ) );
+            Project = RoslynTestingUtils.CreateFakeProject( RoslynTestingUtils.GetDocuments( "../../../../ConsoleApp1/", "ConsoleApp1/Program.cs", "ConsoleApp1/Class.cs" ).ToArray() );
         }
         [TearDown]
         public void TearDown() {
@@ -31,7 +30,7 @@
         public async Task Test_00_Analysis() {
             var analyzers = new DiagnosticAnalyzer[] { new ExampleAnalyzer0000(), new ExampleAnalyzer0001(), new ExampleAnalyzer0002() };
             var diagnostics = await RoslynTestingUtils.AnalyzeAsync( Project, analyzers, default ).ConfigureAwait( false );
-            var message = RoslynTestingUtils.Messages.GetMessage_AnalysisResult( Project, analyzers, diagnostics );
+            var message = RoslynTestingMessages.GetMessage_AnalysisResult( Project, analyzers, diagnostics );
             TestContext.WriteLine( message );
         }
 
@@ -45,7 +44,7 @@
 
             var fixer = new ExampleCodeFixProvider();
             var newProjects = await RoslynTestingUtils.FixAsync( Project, fixer, diagnostics, default ).ConfigureAwait( false );
-            var message = RoslynTestingUtils.Messages.GetMessage_FixingResult( Project, fixer, analyzers, diagnostics, newProjects );
+            var message = RoslynTestingMessages.GetMessage_FixingResult( Project, fixer, analyzers, diagnostics, newProjects );
             TestContext.WriteLine( message );
         }
 
@@ -75,24 +74,8 @@
         public async Task Test_02_Refactoring() {
             var refactorer = new ExampleCodeRefactoringProvider();
             var newProjects = await RoslynTestingUtils.RefactorAsync( Project, refactorer, default ).ConfigureAwait( false );
-            var message = RoslynTestingUtils.Messages.GetMessage_RefactoringResult( Project, refactorer, newProjects );
+            var message = RoslynTestingMessages.GetMessage_RefactoringResult( Project, refactorer, newProjects );
             TestContext.WriteLine( message );
-        }
-
-
-        // Generation
-        [Test]
-        public async Task Test_04_Generation() {
-            var generator = new ExampleSourceGenerator();
-            var result = await RoslynTestingUtils.GenerateAsync( Project, generator, default ).ConfigureAwait( false );
-            var message = RoslynTestingUtils.Messages.GetMessage_GenerationResult( Project, result.Generator, result.GeneratedSources.ToArray(), result.Diagnostics.ToArray(), result.Exception );
-            TestContext.WriteLine( message );
-            foreach (var diagnostic in result.Diagnostics) {
-                Assert.Warn( diagnostic.ToString() );
-            }
-            if (result.Exception != null) {
-                Assert.Fail( result.Exception.ToString() );
-            }
         }
 
 
