@@ -10,144 +10,210 @@
     using Microsoft.CodeAnalysis.CSharp;
     using Microsoft.CodeAnalysis.CSharp.Syntax;
     using Microsoft.CodeAnalysis.Diagnostics;
+    using Microsoft.CodeAnalysis.FlowAnalysis;
     using Microsoft.CodeAnalysis.Text;
 
     public static class RoslynTestingMessages {
 
 
-        public static string GetMessage_AnalysisResult(Project project, DiagnosticAnalyzer[] analyzers, Diagnostic[] diagnostics) {
-            var builder = new StringBuilder();
-            builder.AppendLineFormat( "Project: {0}", project.Name );
-            builder.AppendLineFormat( "Documents: {0}", project.Documents.Select( i => i.Name ).Join() );
-            builder.AppendLineFormat( "Analyzers: {0}", analyzers.Select( i => i.GetType().Name ).Join() );
+        // Analysis
+        public static string GetMessage(Project project, DiagnosticAnalyzer[] analyzers, Diagnostic[] diagnostics) {
+            var hierarchy = new List<object>();
+            hierarchy.AppendLine( "Analysis result" );
+            {
+                hierarchy.Children().AppendObject( project );
+                hierarchy.Children().AppendObject( analyzers );
+                hierarchy.Children().AppendObject( diagnostics );
+            }
+            return hierarchy.Build();
+        }
+        // Fixing
+        public static string GetMessage(CodeFixProvider fixer, Project project, DiagnosticAnalyzer[] analyzers, Diagnostic[] diagnostics, (Project, CodeAction)[] newProjects) {
+            var hierarchy = new List<object>();
+            hierarchy.AppendLine( "Fixing result" );
+            {
+                hierarchy.Children().AppendLine( "Fixer: {0}", fixer.GetType().Name );
+                hierarchy.Children().AppendObject( project );
+                hierarchy.Children().AppendObject( analyzers );
+                hierarchy.Children().AppendObject( diagnostics );
+                foreach (var (newProject, action) in newProjects) {
+                    hierarchy.Children().AppendObject( newProject, project, action );
+                }
+            }
+            return hierarchy.Build();
+        }
+        // Refactoring
+        public static string GetMessage(CodeRefactoringProvider refactorer, Project project, (Project, CodeAction)[] newProjects) {
+            var hierarchy = new List<object>();
+            hierarchy.AppendLine( "Refactoring result" );
+            {
+                hierarchy.Children().AppendLine( "Refactorer: {0}", refactorer.GetType().Name );
+                hierarchy.Children().AppendObject( project );
+                foreach (var (newProject, action) in newProjects) {
+                    hierarchy.Children().AppendObject( newProject, project, action );
+                }
+            }
+            return hierarchy.Build();
+        }
+        // Generation
+        public static string GetMessage(ISourceGenerator generator, Project project, GeneratedSourceResult[] sources, Diagnostic[] diagnostics, Exception? exception) {
+            var hierarchy = new List<object>();
+            hierarchy.AppendLine( "Generation result" );
+            {
+                hierarchy.Children().AppendLine( "Generator: {0}", generator.GetType().Name );
+                hierarchy.Children().AppendObject( project );
+                hierarchy.Children().AppendObject( sources );
+                hierarchy.Children().AppendObject( diagnostics );
+                hierarchy.Children().AppendObject( exception );
+            }
+            return hierarchy.Build();
+        }
+
+
+        // ControlFlowGraph
+        public static string GetMessage(ControlFlowGraph graph) {
+            var hierarchy = new List<object>();
+            hierarchy.AppendLine( "ControlFlowGraph:" );
+            {
+                hierarchy.Children().AppendObject( "Operation:", graph.OriginalOperation );
+                hierarchy.Children().AppendObject( "Root:", graph.Root );
+                foreach (var item in graph.Blocks) {
+                    hierarchy.Children().AppendObject( "Block:", item );
+                }
+            }
+            return hierarchy.Build();
+        }
+        private static IList<object> AppendObject(this IList<object> hierarchy, string title, IOperation operation) {
+            hierarchy.AppendLine( title );
+            hierarchy.Children().AppendLine( "Kind: {0}", operation.Kind );
+            hierarchy.Children().AppendLine( "Syntax:" ).Children().AppendText( operation.Syntax.GetDisplayString() );
+            return hierarchy;
+        }
+        private static IList<object> AppendObject(this IList<object> hierarchy, string title, ControlFlowRegion region) {
+            hierarchy.AppendLine( title );
+            hierarchy.Children().AppendLine( "Kind: {0}", region.Kind );
+            hierarchy.Children().AppendLine( "Locals: {0}", region.Locals.Select( i => i.Name ).Join() );
+            hierarchy.Children().AppendLine( "LocalFunctions: {0}", region.LocalFunctions.Select( i => i.Name ).Join() );
+            foreach (var item in region.NestedRegions) {
+                hierarchy.Children().AppendObject( "Nested Region:", item );
+            }
+            return hierarchy;
+        }
+        private static IList<object> AppendObject(this IList<object> hierarchy, string title, BasicBlock block) {
+            hierarchy.AppendLine( title );
+            hierarchy.Children().AppendLine( "Kind: {0}, {1}", block.Kind, block.ConditionKind );
+            hierarchy.Children().AppendLine( "IsReachable: {0}", block.IsReachable );
+            return hierarchy;
+        }
+
+
+        // ControlFlowAnalysis
+        public static string GetMessage(ControlFlowAnalysis analysis, BlockSyntax syntax) {
+            var hierarchy = new List<object>();
+            hierarchy.AppendLine( "ControlFlowAnalysis: {0}:", syntax.Parent!.Kind() );
+            {
+                hierarchy.Children()
+                    .AppendLine( "Start Point Is Reachable: {0}", analysis.StartPointIsReachable )
+                    .AppendLine( "End Point Is Reachable: {0}", analysis.EndPointIsReachable )
+
+                    .AppendLine( "Entry Points: {0}", analysis.EntryPoints.GetDisplayString() )
+                    .AppendLine( "Exit Points: {0}", analysis.ExitPoints.GetDisplayString() )
+
+                    .AppendLine( "Return Statements: {0}", analysis.ReturnStatements.GetDisplayString() );
+            }
+            return hierarchy.Build();
+        }
+
+
+        // DataFlowAnalysis
+        public static string GetMessage(DataFlowAnalysis analysis, BlockSyntax syntax) {
+            var hierarchy = new List<object>();
+            hierarchy.AppendLine( "DataFlowAnalysis: {0}:", syntax.Parent!.Kind() );
+            {
+                hierarchy.Children()
+                    .AppendLine( "Definitely Assigned (On Entry): {0}", analysis.DefinitelyAssignedOnEntry.GetDisplayString() )
+                    .AppendLine( "Definitely Assigned (On Exit): {0}", analysis.DefinitelyAssignedOnExit.GetDisplayString() )
+
+                    .AppendLine( "Declared (Inside): {0}", analysis.VariablesDeclared.GetDisplayString() )
+                    .AppendLine( "Always Assigned (Inside): {0}", analysis.AlwaysAssigned.GetDisplayString() )
+
+                    .AppendLine( "Written (Outside): {0}", analysis.WrittenOutside.GetDisplayString() )
+                    .AppendLine( "Read (Outside): {0}", analysis.ReadOutside.GetDisplayString() )
+
+                    .AppendLine( "Written (Inside): {0}", analysis.WrittenInside.GetDisplayString() )
+                    .AppendLine( "Read (Inside): {0}", analysis.ReadInside.GetDisplayString() )
+
+                    .AppendLine( "Data Flows (In): {0}", analysis.DataFlowsIn.GetDisplayString() )
+                    .AppendLine( "Data Flows (Out): {0}", analysis.DataFlowsOut.GetDisplayString() )
+
+                    .AppendLine( "Captured: {0}", analysis.Captured.GetDisplayString() )
+                    .AppendLine( "Captured (Inside): {0}", analysis.CapturedInside.GetDisplayString() )
+                    .AppendLine( "Captured (Outside): {0}", analysis.CapturedOutside.GetDisplayString() )
+
+                    .AppendLine( "Unsafe Address Taken: {0}", analysis.UnsafeAddressTaken.GetDisplayString() )
+                    .AppendLine( "Used Local Functions: {0}", analysis.UsedLocalFunctions.GetDisplayString() );
+            }
+            return hierarchy.Build();
+        }
+
+
+        // Helpers/AppendObject
+        private static void AppendObject(this IList<object> hierarchy, Project project) {
+            hierarchy.AppendLine( "Project: {0} ({1})", project.Name, project.Documents.Select( i => i.Name ).Join() );
+        }
+        private static void AppendObject(this IList<object> hierarchy, DiagnosticAnalyzer[] analyzers) {
+            foreach (var analyzer in analyzers) {
+                hierarchy.AppendLine( "Analyzer: {0}", analyzer.GetType().Name );
+            }
+        }
+        private static void AppendObject(this IList<object> hierarchy, Diagnostic[] diagnostics) {
             foreach (var diagnostic in diagnostics) {
-                builder.AppendObject( diagnostic );
+                if (diagnostic.Location.IsInSource) {
+                    var location = diagnostic.Location;
+                    hierarchy.AppendLine( "Diagnostic: {0}, {1} ({2}{3})", diagnostic.Id, diagnostic.GetMessage(), location.SourceTree.FilePath, location.SourceSpan );
+                } else {
+                    hierarchy.AppendLine( "Diagnostic: {0}, {1}", diagnostic.Id, diagnostic.GetMessage() );
+                }
             }
-            return builder.ToString();
         }
-        public static string GetMessage_FixingResult(Project project, CodeFixProvider fixer, DiagnosticAnalyzer[] analyzers, Diagnostic[] diagnostics, (Project, CodeAction)[] newProjects) {
-            var builder = new StringBuilder();
-            builder.AppendLineFormat( "Project: {0}", project.Name );
-            builder.AppendLineFormat( "Documents: {0}", project.Documents.Select( i => i.Name ).Join() );
-            builder.AppendLineFormat( "Fixer: {0}", fixer.GetType().Name );
-            builder.AppendLineFormat( "Analyzers: {0}", analyzers.Select( i => i.GetType().Name ).Join() );
-            foreach (var diagnostic in diagnostics) {
-                builder.AppendObject( diagnostic );
-            }
-            foreach (var (newProject, action) in newProjects) {
-                builder.AppendObject( newProject, project, action );
-            }
-            return builder.ToString();
-        }
-        public static string GetMessage_RefactoringResult(Project project, CodeRefactoringProvider refactorer, (Project, CodeAction)[] newProjects) {
-            var builder = new StringBuilder();
-            builder.AppendLineFormat( "Project: {0}", project.Name );
-            builder.AppendLineFormat( "Documents: {0}", project.Documents.Select( i => i.Name ).Join() );
-            builder.AppendLineFormat( "Refactorer: {0}", refactorer.GetType().Name );
-            foreach (var (newProject, action) in newProjects) {
-                builder.AppendObject( newProject, project, action );
-            }
-            return builder.ToString();
-        }
-        public static string GetMessage_GenerationResult(Project project, ISourceGenerator generator, GeneratedSourceResult[] sources, Diagnostic[] diagnostics, Exception? exception) {
-            var builder = new StringBuilder();
-            builder.AppendLineFormat( "Project: {0}", project.Name );
-            builder.AppendLineFormat( "Documents: {0}", project.Documents.Select( i => i.Name ).Join() );
-            builder.AppendLineFormat( "Generator: {0}", generator.GetType().Name );
+        private static void AppendObject(this IList<object> hierarchy, GeneratedSourceResult[] sources) {
             foreach (var source in sources) {
-                builder.AppendObject( source );
+                hierarchy.AppendLine( "Source: {0}", source.HintName ).Children().AppendText( source.SourceText.GetDisplayString() );
             }
-            foreach (var diagnostic in diagnostics) {
-                builder.AppendObject( diagnostic );
-            }
+        }
+        private static void AppendObject(this IList<object> hierarchy, Exception? exception) {
             if (exception != null) {
-                builder.AppendObject( exception );
-            }
-            return builder.ToString();
-        }
-
-
-        public static string GetMessage_ControlFlowAnalysis(ControlFlowAnalysis analysis, BlockSyntax syntax) {
-            var builder = new StringBuilder();
-            builder.AppendLineFormat( "ControlFlowAnalysis: {0}", syntax.Parent!.Kind().ToString() );
-
-            builder.AppendLineFormat( "Start Point Is Reachable: {0}", analysis.StartPointIsReachable.ToString() );
-            builder.AppendLineFormat( "End Point Is Reachable: {0}", analysis.EndPointIsReachable.ToString() );
-
-            builder.AppendLineFormat( "Entry Points: {0}", analysis.EntryPoints.GetDisplayString() );
-            builder.AppendLineFormat( "Exit Points: {0}", analysis.ExitPoints.GetDisplayString() );
-
-            builder.AppendLineFormat( "Return Statements: {0}", analysis.ReturnStatements.GetDisplayString() );
-            return builder.ToString();
-        }
-        public static string GetMessage_DataFlowAnalysis(DataFlowAnalysis analysis, BlockSyntax syntax) {
-            var builder = new StringBuilder();
-            builder.AppendLineFormat( "DataFlowAnalysis: {0}", syntax.Parent!.Kind().ToString() );
-
-            builder.AppendLineFormat( "Definitely Assigned (On Entry): {0}", analysis.DefinitelyAssignedOnEntry.GetDisplayString() );
-            builder.AppendLineFormat( "Definitely Assigned (On Exit): {0}", analysis.DefinitelyAssignedOnExit.GetDisplayString() );
-
-            builder.AppendLineFormat( "Declared (Inside): {0}", analysis.VariablesDeclared.GetDisplayString() );
-            builder.AppendLineFormat( "Always Assigned (Inside): {0}", analysis.AlwaysAssigned.GetDisplayString() );
-
-            builder.AppendLineFormat( "Written (Outside): {0}", analysis.WrittenOutside.GetDisplayString() );
-            builder.AppendLineFormat( "Read (Outside): {0}", analysis.ReadOutside.GetDisplayString() );
-
-            builder.AppendLineFormat( "Written (Inside): {0}", analysis.WrittenInside.GetDisplayString() );
-            builder.AppendLineFormat( "Read (Inside): {0}", analysis.ReadInside.GetDisplayString() );
-
-            builder.AppendLineFormat( "Data Flows (In): {0}", analysis.DataFlowsIn.GetDisplayString() );
-            builder.AppendLineFormat( "Data Flows (Out): {0}", analysis.DataFlowsOut.GetDisplayString() );
-
-            builder.AppendLineFormat( "Captured: {0}", analysis.Captured.GetDisplayString() );
-            builder.AppendLineFormat( "Captured (Inside): {0}", analysis.CapturedInside.GetDisplayString() );
-            builder.AppendLineFormat( "Captured (Outside): {0}", analysis.CapturedOutside.GetDisplayString() );
-
-            builder.AppendLineFormat( "Unsafe Address Taken: {0}", analysis.UnsafeAddressTaken.GetDisplayString() );
-            builder.AppendLineFormat( "Used Local Functions: {0}", analysis.UsedLocalFunctions.GetDisplayString() );
-            return builder.ToString();
-        }
-
-
-        // Helpers/StringBuilder
-        private static void AppendObject(this StringBuilder builder, Project project, Project oldProject, CodeAction action) {
-            builder.AppendObject( project.GetChanges( oldProject ), action );
-        }
-        private static void AppendObject(this StringBuilder builder, ProjectChanges changes, CodeAction action) {
-            builder.AppendLineFormat( "Project: {0} ({1})", changes.NewProject.Name, action.Title );
-            foreach (var id in changes.GetAddedDocuments()) {
-                var document = changes.NewProject.GetDocument( id );
-                builder.AppendLineFormat( "Added document: {0}", document!.Name ).AppendLine( document.GetDisplayString() );
-            }
-            foreach (var id in changes.GetRemovedDocuments()) {
-                var document = changes.NewProject.GetDocument( id );
-                builder.AppendLineFormat( "Removed document: {0}", document!.Name );
-            }
-            foreach (var id in changes.GetChangedDocuments()) {
-                var document = changes.NewProject.GetDocument( id );
-                builder.AppendLineFormat( "Changed document: {0}", document!.Name ).AppendLine( document.GetDisplayString() );
+                hierarchy.AppendLine( "Exception: {0}", exception );
             }
         }
-        private static void AppendObject(this StringBuilder builder, Diagnostic diagnostic) {
-            if (diagnostic.Location.IsInSource) {
-                var location = diagnostic.Location;
-                builder.AppendLineFormat( "Diagnostic ({0}): {1} ({2}{3})", diagnostic.Id, diagnostic.GetMessage(), location.SourceTree.FilePath, location.SourceSpan.ToString() );
-            } else {
-                builder.AppendLineFormat( "Diagnostic ({0}): {1}", diagnostic.Id, diagnostic.GetMessage() );
+        private static void AppendObject(this IList<object> hierarchy, Project newProject, Project oldProject, CodeAction action) {
+            hierarchy.AppendLine( "New project: {0}", newProject.Name );
+            {
+                var changes = newProject.GetChanges( oldProject );
+                hierarchy.Children().AppendLine( "Code action: {0}", action.Title );
+                foreach (var id in changes.GetAddedDocuments()) {
+                    var document = changes.NewProject.GetDocument( id );
+                    hierarchy.Children().AppendLine( "Added document: {0}", document!.Name ).Children().AppendText( document.GetDisplayString() );
+                }
+                foreach (var id in changes.GetRemovedDocuments()) {
+                    var document = changes.NewProject.GetDocument( id );
+                    hierarchy.Children().AppendLine( "Removed document: {0}", document!.Name );
+                }
+                foreach (var id in changes.GetChangedDocuments()) {
+                    var document = changes.NewProject.GetDocument( id );
+                    hierarchy.Children().AppendLine( "Changed document: {0}", document!.Name ).Children().AppendText( document.GetDisplayString() );
+                }
             }
         }
-        private static void AppendObject(this StringBuilder builder, GeneratedSourceResult source) {
-            builder.AppendLineFormat( "Source: {0}", source.HintName ).AppendLine( source.SourceText.GetDisplayString() );
+        // Helpers/GetDisplayString
+        private static IEnumerable<string> GetDisplayString(this Document value) {
+            return value.GetTextAsync().Result.Lines.Select( i => i.ToString() );
         }
-        private static void AppendObject(this StringBuilder builder, Exception exception) {
-            builder.AppendLineFormat( "Exception: {0}", exception.ToString() );
+        private static IEnumerable<string> GetDisplayString(this SyntaxNode value) {
+            return value.GetText().Lines.Select( i => i.ToString() );
         }
-        // Helpers/String
-        private static string GetDisplayString(this Document document) {
-            return document.GetTextAsync().Result.ToString().Indent( "|  " );
-        }
-        private static string GetDisplayString(this SourceText document) {
-            return document.ToString().Indent( "|  " );
+        private static IEnumerable<string> GetDisplayString(this SourceText value) {
+            return value.Lines.Select( i => i.ToString() );
         }
         private static string GetDisplayString(this IImmutableList<SyntaxNode> values) {
             return values.Select( i => i.Kind().ToString() ).Join();

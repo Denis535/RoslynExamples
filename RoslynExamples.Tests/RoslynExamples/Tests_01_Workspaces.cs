@@ -30,7 +30,7 @@
         public async Task Test_00_Analysis() {
             var analyzers = new DiagnosticAnalyzer[] { new ExampleAnalyzer0000(), new ExampleAnalyzer0001(), new ExampleAnalyzer0002() };
             var diagnostics = await RoslynTestingUtils.AnalyzeAsync( Project, analyzers, default ).ConfigureAwait( false );
-            var message = RoslynTestingMessages.GetMessage_AnalysisResult( Project, analyzers, diagnostics );
+            var message = RoslynTestingMessages.GetMessage( Project, analyzers, diagnostics );
             TestContext.WriteLine( message );
         }
 
@@ -44,7 +44,7 @@
 
             var fixer = new ExampleCodeFixProvider();
             var newProjects = await RoslynTestingUtils.FixAsync( Project, fixer, diagnostics, default ).ConfigureAwait( false );
-            var message = RoslynTestingMessages.GetMessage_FixingResult( Project, fixer, analyzers, diagnostics, newProjects );
+            var message = RoslynTestingMessages.GetMessage( fixer, Project, analyzers, diagnostics, newProjects );
             TestContext.WriteLine( message );
         }
 
@@ -74,7 +74,7 @@
         public async Task Test_02_Refactoring() {
             var refactorer = new ExampleCodeRefactoringProvider();
             var newProjects = await RoslynTestingUtils.RefactorAsync( Project, refactorer, default ).ConfigureAwait( false );
-            var message = RoslynTestingMessages.GetMessage_RefactoringResult( Project, refactorer, newProjects );
+            var message = RoslynTestingMessages.GetMessage( refactorer, Project, newProjects );
             TestContext.WriteLine( message );
         }
 

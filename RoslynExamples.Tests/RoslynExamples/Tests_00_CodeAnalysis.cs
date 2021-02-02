@@ -8,6 +8,7 @@
     using Microsoft.CodeAnalysis;
     using Microsoft.CodeAnalysis.CSharp;
     using Microsoft.CodeAnalysis.CSharp.Syntax;
+    using Microsoft.CodeAnalysis.FlowAnalysis;
     using NUnit.Framework;
 
     [SetCulture( "en-US" )]
@@ -32,7 +33,7 @@
         public async Task Test_00_Generation() {
             var generator = new ExampleSourceGenerator();
             var result = await RoslynTestingUtils.GenerateAsync( Project, generator, default ).ConfigureAwait( false );
-            var message = RoslynTestingMessages.GetMessage_GenerationResult( Project, result.Generator, result.GeneratedSources.ToArray(), result.Diagnostics.ToArray(), result.Exception );
+            var message = RoslynTestingMessages.GetMessage( result.Generator, Project, result.GeneratedSources.ToArray(), result.Diagnostics.ToArray(), result.Exception );
             TestContext.WriteLine( message );
             foreach (var diagnostic in result.Diagnostics) {
                 Assert.Warn( diagnostic.ToString() );
@@ -43,26 +44,41 @@
         }
 
 
-        // ControlFlowAnalysis
+        // ControlFlowGraph
         [Test]
-        public async Task Test_01_ControlFlowAnalysis() {
+        public async Task Test_01_ControlFlowGraph() {
             var document = Project.Documents.Where( i => i.Name == "ConsoleApp1/Program.cs" ).Single();
             var model = await document.GetSemanticModelAsync().ConfigureAwait( false );
             var root = await document.GetSyntaxRootAsync().ConfigureAwait( false );
-            var method = root!.DescendantNodes().OfType<MethodDeclarationSyntax>().Single( i => i.Identifier.Text == "ControlFlowExample" );
-            var message = RoslynTestingMessages.GetMessage_ControlFlowAnalysis( model!.AnalyzeControlFlow( method.Body! )!, method.Body! );
+            var method = root!.DescendantNodes().OfType<MethodDeclarationSyntax>().Single( i => i.Identifier.Text == "ControlFlowGraphExample" );
+            var graph = ControlFlowGraph.Create( method, model );
+            var message = RoslynTestingMessages.GetMessage( graph );
+            TestContext.WriteLine( message );
+        }
+
+
+        // ControlFlowAnalysis
+        [Test]
+        public async Task Test_02_ControlFlowAnalysis() {
+            var document = Project.Documents.Where( i => i.Name == "ConsoleApp1/Program.cs" ).Single();
+            var model = await document.GetSemanticModelAsync().ConfigureAwait( false );
+            var root = await document.GetSyntaxRootAsync().ConfigureAwait( false );
+            var method = root!.DescendantNodes().OfType<MethodDeclarationSyntax>().Single( i => i.Identifier.Text == "ControlFlowAnalysisExample" );
+            var analysis = model!.AnalyzeControlFlow( method.Body! )!;
+            var message = RoslynTestingMessages.GetMessage( analysis, method.Body! );
             TestContext.WriteLine( message );
         }
 
 
         // DataFlowAnalysis
         [Test]
-        public async Task Test_02_DataFlowAnalysis() {
+        public async Task Test_03_DataFlowAnalysis() {
             var document = Project.Documents.Where( i => i.Name == "ConsoleApp1/Program.cs" ).Single();
             var model = await document.GetSemanticModelAsync().ConfigureAwait( false );
             var root = await document.GetSyntaxRootAsync().ConfigureAwait( false );
-            var method = root!.DescendantNodes().OfType<MethodDeclarationSyntax>().Single( i => i.Identifier.Text == "DataFlowExample" );
-            var message = RoslynTestingMessages.GetMessage_DataFlowAnalysis( model!.AnalyzeDataFlow( method.Body! )!, method.Body! );
+            var method = root!.DescendantNodes().OfType<MethodDeclarationSyntax>().Single( i => i.Identifier.Text == "DataFlowAnalysisExample" );
+            var analysis = model!.AnalyzeDataFlow( method.Body! )!;
+            var message = RoslynTestingMessages.GetMessage( analysis, method.Body! );
             TestContext.WriteLine( message );
         }
 
