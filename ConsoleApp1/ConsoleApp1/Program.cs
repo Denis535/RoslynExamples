@@ -1,4 +1,5 @@
 ﻿#pragma warning disable CS0162 // Unreachable code detected
+#pragma warning disable CS8321 // Local function is declared but never used
 
 // Symbols:
 // ConsoleApp1,
@@ -9,6 +10,7 @@ namespace ConsoleApp1 {
     using System;
     using System.Collections;
     using System.Collections.Generic;
+    using System.Diagnostics;
     using System.Text;
 
     public static partial class Program {
@@ -20,20 +22,48 @@ namespace ConsoleApp1 {
         }
 
 
+        //| + Block: Ordinal=0, Kind=Entry, Condition=None, IsReachable=True
+        //    | - Fall through successor: Semantics=Regular, Destination=1
+        //————————————————————————————————————————————————————————————————————————————————————————————————————
+        //| + Block: Ordinal=1, Kind=Block, Condition=WhenFalse, IsReachable=True
+        //    | - Fall through successor: Semantics=Regular, Destination=2
+        //    | - Conditional successor: Semantics=Regular, Destination=3
+        //    | + BranchValue: Kind=Literal
+        //        ##  true
+        //    | + Operation: Kind=ExpressionStatement
+        //        ##  Trace.WriteLine( "Block Entry" );
+        //————————————————————————————————————————————————————————————————————————————————————————————————————
+        //| + Block: Ordinal=2, Kind=Block, Condition=None, IsReachable=True
+        //    | - Fall through successor: Semantics=Regular, Destination=5
+        //    | + Operation: Kind=ExpressionStatement
+        //        ##  Trace.WriteLine( "Block (true)" );
+        //————————————————————————————————————————————————————————————————————————————————————————————————————
+        //| + Block: Ordinal=3, Kind=Block, Condition=None, IsReachable=False
+        //    | - Fall through successor: Semantics=Throw, Destination=Null
+        //    | + BranchValue: Kind=ObjectCreation
+        //        ##  new Exception()
+        //    | + Operation: Kind=ExpressionStatement
+        //        ##  Trace.WriteLine( "Block (else)" );
+        //————————————————————————————————————————————————————————————————————————————————————————————————————
+        //| + Block: Ordinal=4, Kind=Block, Condition=None, IsReachable=False
+        //    | - Fall through successor: Semantics=Regular, Destination=5
+        //    | + Operation: Kind=ExpressionStatement
+        //        ##  Trace.WriteLine( "Block Exit" );
+        //————————————————————————————————————————————————————————————————————————————————————————————————————
+        //| + Block: Ordinal=5, Kind=Exit, Condition=None, IsReachable=True
+        //————————————————————————————————————————————————————————————————————————————————————————————————————
         public static void ControlFlowGraphExample() {
-            var localVariable = 777;
-            if (false) LocalMethod1( "Block 1" );
-            if (true) LocalMethod2( "Block 2" );
-            return;
-            LocalMethod3( "Block 3" );
-            return;
+            Trace.WriteLine( "Block Entry" );
+            if (true) {
+                Trace.WriteLine( "Block (true)" );
+                return;
+            } else {
+                Trace.WriteLine( "Block (else)" );
+                throw new Exception();
+            }
+            Trace.WriteLine( "Block Exit" );
 
-            static void LocalMethod1(string value) {
-            }
-            static void LocalMethod2(string value) {
-            }
-            static void LocalMethod3(string value) {
-            }
+            static void LocalMethod() { }
         }
 
 

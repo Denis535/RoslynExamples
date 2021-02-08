@@ -32,7 +32,7 @@
         [Test]
         public async Task Test_00_Generation() {
             var generator = new ExampleSourceGenerator();
-            var result = await RoslynTestingUtils.GenerateAsync( Project, generator, default ).ConfigureAwait( false );
+            var result = await RoslynTestingUtils.GenerateAsync( generator, Project, default ).ConfigureAwait( false );
             var message = RoslynTestingMessages.GetMessage( result.Generator, Project, result.GeneratedSources.ToArray(), result.Diagnostics.ToArray(), result.Exception );
             TestContext.WriteLine( message );
             foreach (var diagnostic in result.Diagnostics) {
@@ -47,11 +47,8 @@
         // ControlFlowGraph
         [Test]
         public async Task Test_01_ControlFlowGraph() {
-            var document = Project.Documents.Where( i => i.Name == "ConsoleApp1/Program.cs" ).Single();
-            var model = await document.GetSemanticModelAsync().ConfigureAwait( false );
-            var root = await document.GetSyntaxRootAsync().ConfigureAwait( false );
-            var method = root!.DescendantNodes().OfType<MethodDeclarationSyntax>().Single( i => i.Identifier.Text == "ControlFlowGraphExample" );
-            var graph = ControlFlowGraph.Create( method, model );
+            var (method, model) = await GetMethod( Project, "ConsoleApp1/Program.cs", "ControlFlowGraphExample" ).ConfigureAwait( false );
+            var graph = ControlFlowGraph.Create( method, model ) ?? throw new Exception( "Control flow graph is null" );
             var message = RoslynTestingMessages.GetMessage( graph );
             TestContext.WriteLine( message );
         }
@@ -60,10 +57,7 @@
         // ControlFlowAnalysis
         [Test]
         public async Task Test_02_ControlFlowAnalysis() {
-            var document = Project.Documents.Where( i => i.Name == "ConsoleApp1/Program.cs" ).Single();
-            var model = await document.GetSemanticModelAsync().ConfigureAwait( false );
-            var root = await document.GetSyntaxRootAsync().ConfigureAwait( false );
-            var method = root!.DescendantNodes().OfType<MethodDeclarationSyntax>().Single( i => i.Identifier.Text == "ControlFlowAnalysisExample" );
+            var (method, model) = await GetMethod( Project, "ConsoleApp1/Program.cs", "ControlFlowAnalysisExample" ).ConfigureAwait( false );
             var analysis = model!.AnalyzeControlFlow( method.Body! )!;
             var message = RoslynTestingMessages.GetMessage( analysis, method.Body! );
             TestContext.WriteLine( message );
@@ -73,13 +67,20 @@
         // DataFlowAnalysis
         [Test]
         public async Task Test_03_DataFlowAnalysis() {
-            var document = Project.Documents.Where( i => i.Name == "ConsoleApp1/Program.cs" ).Single();
-            var model = await document.GetSemanticModelAsync().ConfigureAwait( false );
-            var root = await document.GetSyntaxRootAsync().ConfigureAwait( false );
-            var method = root!.DescendantNodes().OfType<MethodDeclarationSyntax>().Single( i => i.Identifier.Text == "DataFlowAnalysisExample" );
+            var (method, model) = await GetMethod( Project, "ConsoleApp1/Program.cs", "DataFlowAnalysisExample" ).ConfigureAwait( false );
             var analysis = model!.AnalyzeDataFlow( method.Body! )!;
             var message = RoslynTestingMessages.GetMessage( analysis, method.Body! );
             TestContext.WriteLine( message );
+        }
+
+
+        // Helpers
+        private static async Task<(MethodDeclarationSyntax, SemanticModel)> GetMethod(Project project, string document, string method) {
+            var document_ = project.Documents.Where( i => i.Name == document ).SingleOrDefault() ?? throw new Exception( "Document is null: " + document );
+            var root = await document_.GetSyntaxRootAsync().ConfigureAwait( false ) ?? throw new Exception( "Syntax root is null" );
+            var method_ = root.DescendantNodes().OfType<MethodDeclarationSyntax>().SingleOrDefault( i => i.Identifier.Text == method ) ?? throw new Exception( "Method is null: " + method );
+            var model = await document_.GetSemanticModelAsync().ConfigureAwait( false ) ?? throw new Exception( "Semantic model is null" );
+            return (method_, model);
         }
 
 

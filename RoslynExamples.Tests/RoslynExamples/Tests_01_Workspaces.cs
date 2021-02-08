@@ -43,7 +43,7 @@
             diagnostics = diagnostics.Where( i => i.Location.IsInSource ).ToArray();
 
             var fixer = new ExampleCodeFixProvider();
-            var newProjects = await RoslynTestingUtils.FixAsync( Project, fixer, diagnostics, default ).ConfigureAwait( false );
+            var newProjects = await RoslynTestingUtils.FixAsync( fixer, Project, diagnostics, default ).ConfigureAwait( false );
             var message = RoslynTestingMessages.GetMessage( fixer, Project, analyzers, diagnostics, newProjects );
             TestContext.WriteLine( message );
         }
@@ -73,7 +73,7 @@
         [Test]
         public async Task Test_02_Refactoring() {
             var refactorer = new ExampleCodeRefactoringProvider();
-            var newProjects = await RoslynTestingUtils.RefactorAsync( Project, refactorer, default ).ConfigureAwait( false );
+            var newProjects = await RoslynTestingUtils.RefactorAsync( refactorer, Project, default ).ConfigureAwait( false );
             var message = RoslynTestingMessages.GetMessage( refactorer, Project, newProjects );
             TestContext.WriteLine( message );
         }

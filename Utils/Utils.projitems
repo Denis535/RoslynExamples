@@ -9,9 +9,7 @@
     <Import_RootNamespace>System</Import_RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <Folder Include="$(MSBuildThisFileDirectory)System\" />
-  </ItemGroup>
-  <ItemGroup>
+    <Compile Include="..\Utils\System\MessageBuilder.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Utils.cs" />
   </ItemGroup>
 </Project>
