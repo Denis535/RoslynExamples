@@ -18,63 +18,33 @@
         [SetUp]
         public void SetUp() {
             Trace.Listeners.Add( new TextWriterTraceListener( TestContext.Out ) );
-            Project = RoslynTestingUtils.CreateFakeProject( RoslynTestingUtils.GetDocuments( "../../../../ConsoleApp1/", "ConsoleApp1/Program.cs", "ConsoleApp1/Class.cs" ).ToArray() );
+            Project = WorkspacesTestingUtils.CreateFakeProject( WorkspacesTestingUtils.LoadDocuments( "../../../../ConsoleApp1/", "ConsoleApp1/Program.cs", "ConsoleApp1/Class.cs" ).ToArray() );
         }
         [TearDown]
         public void TearDown() {
         }
 
 
-        // Analysis
+        // Fixing
         [Test]
-        public async Task Test_00_Analysis() {
-            var analyzers = new DiagnosticAnalyzer[] { new ExampleAnalyzer0000(), new ExampleAnalyzer0001(), new ExampleAnalyzer0002() };
-            var diagnostics = await RoslynTestingUtils.AnalyzeAsync( Project, analyzers, default ).ConfigureAwait( false );
-            var message = RoslynTestingMessages.GetMessage( Project, analyzers, diagnostics );
-            TestContext.WriteLine( message );
-        }
-
-
-        // Analysis && fixing
-        [Test]
-        public async Task Test_01_Analysis_Fixing() {
-            var analyzers = new DiagnosticAnalyzer[] { new ExampleAnalyzer0000(), new ExampleAnalyzer0001(), new ExampleAnalyzer0002() };
-            var diagnostics = await RoslynTestingUtils.AnalyzeAsync( Project, analyzers, default ).ConfigureAwait( false );
-            diagnostics = diagnostics.Where( i => i.Location.IsInSource ).ToArray();
+        public async Task Test_00_Fixing() {
+            var compilation = await Project.GetCompilationAsync( default ).ConfigureAwait( false ) ?? throw new Exception( "Compilation is null" );
+            var analyzers = new DiagnosticAnalyzer[] { new ExampleAnalyzer0000(), new ExampleAnalyzer0001() };
+            var diagnostics = await CodeAnalysisTestingUtils.AnalyzeAsync( compilation, analyzers, null, default ).ConfigureAwait( false );
 
             var fixer = new ExampleCodeFixProvider();
-            var newProjects = await RoslynTestingUtils.FixAsync( fixer, Project, diagnostics, default ).ConfigureAwait( false );
-            var message = RoslynTestingMessages.GetMessage( fixer, Project, analyzers, diagnostics, newProjects );
+            var newProjects = await WorkspacesTestingUtils.FixAsync( fixer, Project, diagnostics, default ).ConfigureAwait( false );
+            var message = Messages.GetMessage( fixer, Project, analyzers, diagnostics, newProjects );
             TestContext.WriteLine( message );
         }
-
-
-        // Analysis && fixing && batching
-        //[Test]
-        //public async Task Test_01_Analysis_Fixing_Batching() {
-        //    var diagnostics = await RoslynTestingUtils.AnalyzeAsync( Project, Analyzers, default ).ConfigureAwait( false );
-        //    //diagnostics = diagnostics.Distinct().Where( i => i.Location != Location.None ).ToArray();
-
-        //    var document = Project.GetDocument( diagnostics.Skip( 1 ).First().Location.SourceTree ) ?? throw new Exception( "Document is not found" );
-        //    var fixer = new ExampleCodeFixProvider();
-        //    var fixAllProvider = fixer.GetFixAllProvider();
-        //    //var supportedDiagnostics = fixAllProvider.GetSupportedFixAllDiagnosticIds( fixer ); // fixer.FixableDiagnosticIds;
-        //    //var supportedScopes = fixAllProvider.GetSupportedFixAllScopes();
-
-        //    var context = new FixAllContext( document, fixer, FixAllScope.Solution, fixer.FixableDiagnosticIds.Join(), fixer.FixableDiagnosticIds, new DiagnosticProvider( diagnostics ), default );
-        //    var action = await fixAllProvider.GetFixAsync( context ).ConfigureAwait( false ) ?? throw new Exception( "Fix action is null" );
-        //    var operations = await action.GetOperationsAsync( default ).ConfigureAwait( false );
-        //    var operation = operations.Cast<ApplyChangesOperation>().Single();
-        //    var newProject = operation.ChangedSolution.Projects.First();
-        //}
 
 
         // Refactoring
         [Test]
-        public async Task Test_02_Refactoring() {
+        public async Task Test_01_Refactoring() {
             var refactorer = new ExampleCodeRefactoringProvider();
-            var newProjects = await RoslynTestingUtils.RefactorAsync( refactorer, Project, default ).ConfigureAwait( false );
-            var message = RoslynTestingMessages.GetMessage( refactorer, Project, newProjects );
+            var newProjects = await WorkspacesTestingUtils.RefactorAsync( refactorer, Project, default ).ConfigureAwait( false );
+            var message = Messages.GetMessage( refactorer, Project, newProjects );
             TestContext.WriteLine( message );
         }
 

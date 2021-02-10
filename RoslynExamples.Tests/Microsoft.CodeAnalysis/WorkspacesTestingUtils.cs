@@ -12,17 +12,17 @@
     using Microsoft.CodeAnalysis.CodeFixes;
     using Microsoft.CodeAnalysis.CodeRefactorings;
     using Microsoft.CodeAnalysis.CSharp;
-    using Microsoft.CodeAnalysis.Diagnostics;
+    using Microsoft.CodeAnalysis.CSharp.Syntax;
     using Microsoft.CodeAnalysis.Text;
 
-    public static class RoslynTestingUtils {
+    public static class WorkspacesTestingUtils {
 
 
         // Initialization/Project
-        public static Project CreateFakeProject((SourceText content, string name)[] documents) {
+        public static Project CreateFakeProject((SourceText Text, string Name, string Path)[] documents) {
             var project = CreateFakeProject();
-            foreach (var (content, name) in documents) {
-                project = project.AddDocument( name, content ).Project;
+            foreach (var (text, name, path) in documents) {
+                project = project.AddDocument( name, text, null, path ).Project;
             }
             return project;
         }
@@ -34,33 +34,23 @@
                 .WithCompilationOptions( new CSharpCompilationOptions( OutputKind.ConsoleApplication ) )
                 .AddMetadataReference( mscorlib );
         }
-        // Initialization/Compilation
-        public static CSharpCompilation CreateFakeCompilation(SourceText[] contents) {
-            return CreateFakeCompilation()
-                .AddSyntaxTrees( contents.Select( i => CSharpSyntaxTree.ParseText( i ) ) );
-        }
-        private static CSharpCompilation CreateFakeCompilation() {
-            var mscorlib = MetadataReference.CreateFromFile( typeof( object ).Assembly.Location );
-            return CSharpCompilation.Create( "FakeCompilation" )
-                .WithOptions( new CSharpCompilationOptions( OutputKind.ConsoleApplication ) )
-                .WithReferences( mscorlib );
-        }
         // Initialization/Documents
-        public static IEnumerable<(SourceText Text, string Name)> GetDocuments(string directory, params string[] names) {
+        public static IEnumerable<(SourceText Text, string Name, string Path)> LoadDocuments(string directory, params string[] names) {
             foreach (var name in names) {
-                var path = Path.Combine( directory, name );
+                var path = Path.GetFullPath( Path.Combine( directory, name ) );
                 var text = File.ReadAllText( path );
-                yield return (SourceText.From( text ), name);
+                yield return (SourceText.From( text ), name, path);
             }
         }
-
-
-        // Analysis
-        public static async Task<Diagnostic[]> AnalyzeAsync(Project project, DiagnosticAnalyzer[] analyzers, CancellationToken cancellationToken) {
-            var compilation = await project.GetCompilationAsync( cancellationToken ).ConfigureAwait( false ) ?? throw new Exception( "Compilation is not found" );
-            var compilationWithAnalyzers = compilation.WithAnalyzers( analyzers.ToImmutableArray(), project.AnalyzerOptions, cancellationToken );
-            var diagnostics = await compilationWithAnalyzers.GetAllDiagnosticsAsync( cancellationToken ).ConfigureAwait( false );
-            return diagnostics.Where( i => !IsCompilerDiagnostic( i ) ).OrderBy( i => i.Id ).ThenBy( i => i.Location.SourceTree?.FilePath ).ThenBy( i => i.Location.SourceSpan ).ToArray();
+        // Initialization/Utils
+        public static (Document, SemanticModel) FindDocument(this Project project, string name) {
+            var document = project.Documents.Where( i => i.Name == name ).SingleOrDefault() ?? throw new Exception( "Document is not found: " + name );
+            var model = document.GetSemanticModelAsync().Result ?? throw new Exception( "Semantic model is null" );
+            return (document, model);
+        }
+        public static MethodDeclarationSyntax FindMethod(this Document document, string name) {
+            var root = document.GetSyntaxRootAsync().Result ?? throw new Exception( "Syntax root is null" );
+            return root.DescendantNodes().OfType<MethodDeclarationSyntax>().SingleOrDefault( i => i.Identifier.Text == name ) ?? throw new Exception( "Method is not found: " + name );
         }
 
 
@@ -94,18 +84,6 @@
         }
 
 
-        // Generation
-        public static async Task<GeneratorRunResult> GenerateAsync(ISourceGenerator generator, Project project, CancellationToken cancellationToken) {
-            var driver = GetGeneratorDriver( generator, project );
-            var compilation = await project.GetCompilationAsync( cancellationToken ).ConfigureAwait( false ) ?? throw new Exception( "Compilation is not found" );
-            return driver.RunGenerators( compilation, cancellationToken ).GetRunResult().Results.Single();
-        }
-
-
-        // Helpers/Analysis
-        private static bool IsCompilerDiagnostic(Diagnostic diagnostic) {
-            return diagnostic.Descriptor.CustomTags.Contains( WellKnownDiagnosticTags.Compiler );
-        }
         // Helpers/Fixing
         private static async Task GetCodeFixActionsAsync(CodeFixProvider fixer, Project project, Diagnostic diagnostic, List<CodeAction> actions, CancellationToken cancellationToken) {
             if (!fixer.FixableDiagnosticIds.Contains( diagnostic.Id )) throw new ArgumentException( $"Diagnostic is not supported by CodeFixProvider: Diagnostic={diagnostic.Id}, CodeFixProvider={fixer.GetType().Name}" );
@@ -135,11 +113,7 @@
             var context = new CodeRefactoringContext( document, root.FullSpan, action => actions.Add( action ), cancellationToken );
             await refactorer.ComputeRefactoringsAsync( context ).ConfigureAwait( false );
         }
-        // Helpers/Generation
-        private static CSharpGeneratorDriver GetGeneratorDriver(ISourceGenerator generator, Project project) {
-            return CSharpGeneratorDriver.Create( new[] { generator }, project.AnalyzerOptions.AdditionalFiles, (CSharpParseOptions?) project.ParseOptions, project.AnalyzerOptions.AnalyzerConfigOptionsProvider );
-        }
-        // Helpers/Misc
+        // Helpers/CodeAction
         private static async Task<(Project, CodeAction)[]> ApplyCodeActionsAsync(IList<CodeAction> actions, CancellationToken cancellationToken) {
             var result = new List<(Project, CodeAction)>();
             foreach (var action in actions) {
@@ -153,29 +127,4 @@
 
 
     }
-
-    internal sealed class DiagnosticProvider : FixAllContext.DiagnosticProvider {
-
-        private Diagnostic[] Diagnostics { get; }
-
-        public DiagnosticProvider(Diagnostic[] diagnostics) {
-            Diagnostics = diagnostics;
-        }
-
-
-        public override Task<IEnumerable<Diagnostic>> GetAllDiagnosticsAsync(Project project, CancellationToken cancellationToken) {
-            return Task.FromResult( Diagnostics.AsEnumerable() );
-        }
-
-        public override Task<IEnumerable<Diagnostic>> GetProjectDiagnosticsAsync(Project project, CancellationToken cancellationToken) {
-            // todo: is it ok that project is unused?
-            return Task.FromResult( Diagnostics.Where( i => !i.Location.IsInSource ) );
-        }
-
-        public override Task<IEnumerable<Diagnostic>> GetDocumentDiagnosticsAsync(Document document, CancellationToken cancellationToken) {
-            return Task.FromResult( Diagnostics.Where( i => i.Location.GetLineSpan().Path == document.Name ) );
-        }
-
-    }
-
 }

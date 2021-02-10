@@ -2,6 +2,7 @@
     using System;
     using System.Collections.Generic;
     using System.Collections.Immutable;
+    using System.IO;
     using System.Linq;
     using System.Text;
     using Microsoft.CodeAnalysis.CodeActions;
@@ -13,14 +14,14 @@
     using Microsoft.CodeAnalysis.FlowAnalysis;
     using Microsoft.CodeAnalysis.Text;
 
-    public static class RoslynTestingMessages {
+    public static class Messages {
 
 
         // Analysis
-        public static string GetMessage(Project project, DiagnosticAnalyzer[] analyzers, Diagnostic[] diagnostics) {
+        public static string GetMessage(Compilation compilation, DiagnosticAnalyzer[] analyzers, Diagnostic[] diagnostics) {
             using var builder = new MessageBuilder();
             using (builder.AppendTitle( "Analysis result:" )) {
-                builder.AppendObject( project );
+                builder.AppendObject( compilation );
                 builder.AppendObject( analyzers );
                 builder.AppendObject( diagnostics );
             }
@@ -60,6 +61,17 @@
             using (builder.AppendTitle( "Generation result:" )) {
                 builder.AppendLine( "Generator: {0}", generator.GetType().Name );
                 builder.AppendObject( project );
+                builder.AppendObject( sources );
+                builder.AppendObject( diagnostics );
+                builder.AppendObject( exception );
+            }
+            return builder.ToString();
+        }
+        public static string GetMessage(ISourceGenerator generator, Compilation compilation, GeneratedSourceResult[] sources, Diagnostic[] diagnostics, Exception? exception) {
+            using var builder = new MessageBuilder();
+            using (builder.AppendTitle( "Generation result:" )) {
+                builder.AppendLine( "Generator: {0}", generator.GetType().Name );
+                builder.AppendObject( compilation );
                 builder.AppendObject( sources );
                 builder.AppendObject( diagnostics );
                 builder.AppendObject( exception );
@@ -169,6 +181,9 @@
         // Helpers/AppendObject
         private static void AppendObject(this MessageBuilder builder, Project project) {
             builder.AppendLine( "Project: {0} ({1})", project.Name, project.Documents.Select( i => i.Name ).Join() );
+        }
+        private static void AppendObject(this MessageBuilder builder, Compilation compilation) {
+            builder.AppendLine( "Compilation: {0} ({1})", compilation.AssemblyName, compilation.SyntaxTrees.Select( i => Path.GetFileName( i.FilePath ) ).Join() );
         }
         private static void AppendObject(this MessageBuilder builder, DiagnosticAnalyzer[] analyzers) {
             foreach (var analyzer in analyzers) {
