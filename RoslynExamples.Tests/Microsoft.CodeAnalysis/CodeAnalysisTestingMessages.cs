@@ -5,16 +5,13 @@
     using System.IO;
     using System.Linq;
     using System.Text;
-    using Microsoft.CodeAnalysis.CodeActions;
-    using Microsoft.CodeAnalysis.CodeFixes;
-    using Microsoft.CodeAnalysis.CodeRefactorings;
     using Microsoft.CodeAnalysis.CSharp;
     using Microsoft.CodeAnalysis.CSharp.Syntax;
     using Microsoft.CodeAnalysis.Diagnostics;
     using Microsoft.CodeAnalysis.FlowAnalysis;
     using Microsoft.CodeAnalysis.Text;
 
-    public static class Messages {
+    public static class CodeAnalysisTestingMessages {
 
 
         // Analysis
@@ -27,46 +24,7 @@
             }
             return builder.ToString();
         }
-        // Fixing
-        public static string GetMessage(CodeFixProvider fixer, Project project, DiagnosticAnalyzer[] analyzers, Diagnostic[] diagnostics, (Project, CodeAction)[] newProjects) {
-            using var builder = new MessageBuilder();
-            using (builder.AppendTitle( "Fixing result:" )) {
-                builder.AppendLine( "Fixer: {0}", fixer.GetType().Name );
-                builder.AppendObject( project );
-                builder.AppendObject( analyzers );
-                builder.AppendObject( diagnostics );
-                foreach (var (newProject, action) in newProjects) {
-                    builder.AppendObject( action );
-                    builder.AppendObject( newProject, project );
-                }
-            }
-            return builder.ToString();
-        }
-        // Refactoring
-        public static string GetMessage(CodeRefactoringProvider refactorer, Project project, (Project, CodeAction)[] newProjects) {
-            using var builder = new MessageBuilder();
-            using (builder.AppendTitle( "Refactoring result:" )) {
-                builder.AppendLine( "Refactorer: {0}", refactorer.GetType().Name );
-                builder.AppendObject( project );
-                foreach (var (newProject, action) in newProjects) {
-                    builder.AppendObject( action );
-                    builder.AppendObject( newProject, project );
-                }
-            }
-            return builder.ToString();
-        }
         // Generation
-        public static string GetMessage(ISourceGenerator generator, Project project, GeneratedSourceResult[] sources, Diagnostic[] diagnostics, Exception? exception) {
-            using var builder = new MessageBuilder();
-            using (builder.AppendTitle( "Generation result:" )) {
-                builder.AppendLine( "Generator: {0}", generator.GetType().Name );
-                builder.AppendObject( project );
-                builder.AppendObject( sources );
-                builder.AppendObject( diagnostics );
-                builder.AppendObject( exception );
-            }
-            return builder.ToString();
-        }
         public static string GetMessage(ISourceGenerator generator, Compilation compilation, GeneratedSourceResult[] sources, Diagnostic[] diagnostics, Exception? exception) {
             using var builder = new MessageBuilder();
             using (builder.AppendTitle( "Generation result:" )) {
@@ -146,8 +104,6 @@
             }
             return builder.ToString();
         }
-
-
         // DataFlowAnalysis
         public static string GetMessage(DataFlowAnalysis analysis, BlockSyntax syntax) {
             using var builder = new MessageBuilder();
@@ -179,9 +135,6 @@
 
 
         // Helpers/AppendObject
-        private static void AppendObject(this MessageBuilder builder, Project project) {
-            builder.AppendLine( "Project: {0} ({1})", project.Name, project.Documents.Select( i => i.Name ).Join() );
-        }
         private static void AppendObject(this MessageBuilder builder, Compilation compilation) {
             builder.AppendLine( "Compilation: {0} ({1})", compilation.AssemblyName, compilation.SyntaxTrees.Select( i => Path.GetFileName( i.FilePath ) ).Join() );
         }
@@ -200,30 +153,6 @@
                 }
             }
         }
-        private static void AppendObject(this MessageBuilder builder, CodeAction action) {
-            builder.AppendLine( "Code action: {0}", action.Title );
-        }
-        private static void AppendObject(this MessageBuilder builder, Project newProject, Project oldProject) {
-            using (builder.AppendSection( "Project changes:" )) {
-                var changes = newProject.GetChanges( oldProject );
-                foreach (var id in changes.GetAddedDocuments()) {
-                    var document = changes.NewProject.GetDocument( id );
-                    using (builder.AppendSection( "Added document: {0}", document!.Name )) {
-                        builder.AppendText( document.GetDisplayString() );
-                    }
-                }
-                foreach (var id in changes.GetRemovedDocuments()) {
-                    var document = changes.OldProject.GetDocument( id );
-                    builder.AppendLine( "Removed document: {0}", document!.Name );
-                }
-                foreach (var id in changes.GetChangedDocuments()) {
-                    var document = changes.NewProject.GetDocument( id );
-                    using (builder.AppendSection( "Changed document: {0}", document!.Name )) {
-                        builder.AppendText( document.GetDisplayString() );
-                    }
-                }
-            }
-        }
         private static void AppendObject(this MessageBuilder builder, GeneratedSourceResult[] sources) {
             foreach (var source in sources) {
                 using (builder.AppendSection( "Source: {0}", source.HintName )) {
@@ -237,9 +166,6 @@
             }
         }
         // Helpers/GetDisplayString
-        private static IEnumerable<string> GetDisplayString(this Document value) {
-            return value.GetTextAsync().Result.Lines.Select( i => i.ToString() );
-        }
         private static IEnumerable<string> GetDisplayString(this SyntaxNode value) {
             return value.GetText().Lines.Select( i => i.ToString() );
         }

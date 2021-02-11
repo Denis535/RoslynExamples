@@ -33,7 +33,7 @@
         public async Task Test_00_Analysis() {
             var analyzers = new DiagnosticAnalyzer[] { new ExampleAnalyzer0000(), new ExampleAnalyzer0001(), new ExampleAnalyzer0002() };
             var diagnostics = await CodeAnalysisTestingUtils.AnalyzeAsync( Compilation, analyzers, null, default ).ConfigureAwait( false );
-            var message = Messages.GetMessage( Compilation, analyzers, diagnostics );
+            var message = CodeAnalysisTestingMessages.GetMessage( Compilation, analyzers, diagnostics );
             TestContext.WriteLine( message );
         }
 
@@ -43,7 +43,7 @@
         public void Test_01_Generation() {
             var generator = new ExampleSourceGenerator();
             var generation = CodeAnalysisTestingUtils.GenerateAsync( generator, Compilation, default );
-            var message = Messages.GetMessage( generation.Generator, Compilation, generation.GeneratedSources.ToArray(), generation.Diagnostics.ToArray(), generation.Exception );
+            var message = CodeAnalysisTestingMessages.GetMessage( generation.Generator, Compilation, generation.GeneratedSources.ToArray(), generation.Diagnostics.ToArray(), generation.Exception );
             TestContext.WriteLine( message );
             foreach (var diagnostic in generation.Diagnostics) {
                 Assert.Warn( diagnostic.ToString() );
@@ -60,7 +60,7 @@
             var (tree, model) = Compilation.FindSyntaxTree( "Program.cs" );
             var method = tree.FindMethod( "ControlFlowGraphExample" );
             var graph = ControlFlowGraph.Create( method, model ) ?? throw new Exception( "Control flow graph is null" );
-            var message = Messages.GetMessage( graph );
+            var message = CodeAnalysisTestingMessages.GetMessage( graph );
             TestContext.WriteLine( message );
         }
 
@@ -71,7 +71,7 @@
             var (tree, model) = Compilation.FindSyntaxTree( "Program.cs" );
             var method = tree.FindMethod( "ControlFlowAnalysisExample" );
             var analysis = model!.AnalyzeControlFlow( method.Body! ) ?? throw new Exception( "Control flow analysis is null" );
-            var message = Messages.GetMessage( analysis, method.Body! );
+            var message = CodeAnalysisTestingMessages.GetMessage( analysis, method.Body! );
             TestContext.WriteLine( message );
         }
 
@@ -82,7 +82,7 @@
             var (tree, model) = Compilation.FindSyntaxTree( "Program.cs" );
             var method = tree.FindMethod( "DataFlowAnalysisExample" );
             var analysis = model!.AnalyzeDataFlow( method.Body! ) ?? throw new Exception( "Data flow analysis is null" );
-            var message = Messages.GetMessage( analysis, method.Body! );
+            var message = CodeAnalysisTestingMessages.GetMessage( analysis, method.Body! );
             TestContext.WriteLine( message );
         }
 

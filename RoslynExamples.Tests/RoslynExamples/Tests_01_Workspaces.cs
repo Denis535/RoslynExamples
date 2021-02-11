@@ -33,8 +33,8 @@
             var diagnostics = await CodeAnalysisTestingUtils.AnalyzeAsync( compilation, analyzers, null, default ).ConfigureAwait( false );
 
             var fixer = new ExampleCodeFixProvider();
-            var newProjects = await WorkspacesTestingUtils.FixAsync( fixer, Project, diagnostics, default ).ConfigureAwait( false );
-            var message = Messages.GetMessage( fixer, Project, analyzers, diagnostics, newProjects );
+            var changedProjects = await WorkspacesTestingUtils.FixAsync( fixer, Project, diagnostics, default ).ConfigureAwait( false );
+            var message = WorkspacesTestingMessages.GetMessage( fixer, Project, analyzers, diagnostics, changedProjects );
             TestContext.WriteLine( message );
         }
 
@@ -43,8 +43,8 @@
         [Test]
         public async Task Test_01_Refactoring() {
             var refactorer = new ExampleCodeRefactoringProvider();
-            var newProjects = await WorkspacesTestingUtils.RefactorAsync( refactorer, Project, default ).ConfigureAwait( false );
-            var message = Messages.GetMessage( refactorer, Project, newProjects );
+            var changedProjects = await WorkspacesTestingUtils.RefactorAsync( refactorer, Project, default ).ConfigureAwait( false );
+            var message = WorkspacesTestingMessages.GetMessage( refactorer, Project, changedProjects );
             TestContext.WriteLine( message );
         }
 
