@@ -21,8 +21,8 @@
             var symbols = CodeAnalysisUtils.GetSymbols( model, root, context.Span, context.CancellationToken ).Where( CodeAnalysisUtils.CanBeRenamed ).Reverse().ToArray();
             if (!symbols.Any()) return;
 
-            context.RegisterRefactoring( $"Make symbols '{symbols.Select( i => i.Name ).Join()}' start/end with underscore ({GetType().Name})", Action );
-            context.RegisterRefactoring( $"Make symbols '{symbols.Select( i => i.Name ).Join()}' start/end with double underscore ({GetType().Name})", Action2 );
+            context.RegisterRefactoring( $"Make symbols '{symbols.Join( i => i.Name )}' start/end with underscore ({GetType().Name})", Action );
+            context.RegisterRefactoring( $"Make symbols '{symbols.Join( i => i.Name )}' start/end with double underscore ({GetType().Name})", Action2 );
 
             async Task<Solution> Action(CancellationToken cancellationToken) {
                 return await WorkspacesUtils.WithFormattedSymbols( solution, symbols, "_{0}_", cancellationToken ).ConfigureAwait( false );

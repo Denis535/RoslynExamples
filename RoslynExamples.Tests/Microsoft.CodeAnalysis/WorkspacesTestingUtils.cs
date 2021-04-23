@@ -12,45 +12,32 @@
     using Microsoft.CodeAnalysis.CodeFixes;
     using Microsoft.CodeAnalysis.CodeRefactorings;
     using Microsoft.CodeAnalysis.CSharp;
-    using Microsoft.CodeAnalysis.CSharp.Syntax;
     using Microsoft.CodeAnalysis.Text;
 
     public static class WorkspacesTestingUtils {
 
 
-        // Initialization/Project
-        public static Project CreateFakeProject((SourceText Text, string Name, string Path)[] documents) {
-            var project = CreateFakeProject();
-            foreach (var (text, name, path) in documents) {
-                project = project.AddDocument( name, text, null, path ).Project;
-            }
-            return project;
-        }
-        private static Project CreateFakeProject() {
-            var mscorlib = MetadataReference.CreateFromFile( typeof( object ).Assembly.Location );
+        // Initialization
+        public static Project CreateFakeProject() {
             return new AdhocWorkspace()
                 .AddSolution( SolutionInfo.Create( SolutionId.CreateNewId(), VersionStamp.Create(), null, null, null ) )
                 .AddProject( "FakeProject", "FakeProject", LanguageNames.CSharp )
-                .WithCompilationOptions( new CSharpCompilationOptions( OutputKind.ConsoleApplication ) )
-                .AddMetadataReference( mscorlib );
+                .AddMetadataReferences( Basic.Reference.Assemblies.Net50.All )
+                .WithCompilationOptions( new CSharpCompilationOptions( OutputKind.DynamicallyLinkedLibrary ) );
         }
-        // Initialization/Documents
-        public static IEnumerable<(SourceText Text, string Name, string Path)> LoadDocuments(string directory, params string[] names) {
-            foreach (var name in names) {
-                var path = Path.GetFullPath( Path.Combine( directory, name ) );
-                var text = File.ReadAllText( path );
-                yield return (SourceText.From( text ), name, path);
+        public static Project LoadDocuments(this Project project, params string[] paths) {
+            foreach (var tree in LoadDocuments( paths.Select( Path.GetFullPath ) )) {
+                var name = Path.GetFileNameWithoutExtension( tree.FilePath );
+                project = project.AddDocument( name, tree.GetRoot(), null, tree.FilePath ).Project;
             }
+            return project;
         }
-        // Initialization/Utils
-        public static (Document, SemanticModel) FindDocument(this Project project, string name) {
-            var document = project.Documents.Where( i => i.Name == name ).SingleOrDefault() ?? throw new Exception( "Document is not found: " + name );
-            var model = document.GetSemanticModelAsync().Result ?? throw new Exception( "Semantic model is null" );
-            return (document, model);
-        }
-        public static MethodDeclarationSyntax FindMethod(this Document document, string name) {
-            var root = document.GetSyntaxRootAsync().Result ?? throw new Exception( "Syntax root is null" );
-            return root.DescendantNodes().OfType<MethodDeclarationSyntax>().SingleOrDefault( i => i.Identifier.Text == name ) ?? throw new Exception( "Method is not found: " + name );
+        private static IEnumerable<SyntaxTree> LoadDocuments(IEnumerable<string> paths) {
+            foreach (var path in paths) {
+                var text = SourceText.From( File.ReadAllText( path ) );
+                var tree = CSharpSyntaxTree.ParseText( text, null, path, default );
+                yield return tree;
+            }
         }
 
 
@@ -84,6 +71,19 @@
         }
 
 
+        // Utils/FindDocument
+        public static (Document Document, SemanticModel Model) FindDocument(this Project project) {
+            var document = project.Documents.SingleOrDefault() ?? throw new Exception( "Document is not found" );
+            var model = document.GetSemanticModelAsync().Result ?? throw new Exception( "Semantic model is null" );
+            return (document, model);
+        }
+        public static (Document Document, SemanticModel Model) FindDocument(this Project project, string name) {
+            var document = project.Documents.SingleOrDefault( i => i.Name == name ) ?? throw new Exception( "Document is not found: " + name );
+            var model = document.GetSemanticModelAsync().Result ?? throw new Exception( "Semantic model is null" );
+            return (document, model);
+        }
+
+
         // Helpers/Fixing
         private static async Task GetCodeFixActionsAsync(CodeFixProvider fixer, Project project, Diagnostic diagnostic, List<CodeAction> actions, CancellationToken cancellationToken) {
             if (!fixer.FixableDiagnosticIds.Contains( diagnostic.Id )) throw new ArgumentException( $"Diagnostic is not supported by CodeFixProvider: Diagnostic={diagnostic.Id}, CodeFixProvider={fixer.GetType().Name}" );
@@ -98,8 +98,8 @@
             foreach (var diagnostic in diagnostics) {
                 if (!fixer.FixableDiagnosticIds.Contains( diagnostic.Id )) throw new ArgumentException( $"Diagnostic is not supported by CodeFixProvider: Diagnostic={diagnostic.Id}, CodeFixProvider={fixer.GetType().Name}" );
             }
-            if (diagnostics.Select( i => i.Location.SourceTree ).Distinct().Count() > 1) throw new ArgumentException( $"Diagnostics are invalid: {diagnostics.Select( i => i.Id ).Join()}" );
-            if (diagnostics.Select( i => i.Location.SourceSpan ).Distinct().Count() > 1) throw new ArgumentException( $"Diagnostics are invalid: {diagnostics.Select( i => i.Id ).Join()}" );
+            if (diagnostics.Select( i => i.Location.SourceTree ).Distinct().Count() > 1) throw new ArgumentException( $"Diagnostics are invalid: {diagnostics.Join( i => i.Id )}" );
+            if (diagnostics.Select( i => i.Location.SourceSpan ).Distinct().Count() > 1) throw new ArgumentException( $"Diagnostics are invalid: {diagnostics.Join( i => i.Id )}" );
 
             var tree = diagnostics.First().Location.SourceTree ?? throw new Exception( "Syntax tree is null" );
             var document = project.GetDocument( tree ) ?? throw new Exception( "Document is not found" );

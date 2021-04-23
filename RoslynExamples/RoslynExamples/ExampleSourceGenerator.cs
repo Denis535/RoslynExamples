@@ -60,7 +60,7 @@ namespace RoslynExamples {
     // Collect syntax nodes
     class ExampleSyntaxReceiver : ISyntaxReceiver {
 
-        public List<CompilationUnitSyntax> Units { get; } = new List<CompilationUnitSyntax>();
+        public List<CompilationUnitSyntax> Units { get; } = new List<CompilationUnitSyntax>(); // todo: should I use ConcurrentBag???
 
         void ISyntaxReceiver.OnVisitSyntaxNode(SyntaxNode node) {
             if (node is CompilationUnitSyntax unit) Units.Add( unit );

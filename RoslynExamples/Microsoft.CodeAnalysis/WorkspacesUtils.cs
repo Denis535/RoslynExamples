@@ -31,7 +31,7 @@
         public static async Task<Solution> WithFormattedSymbols(Solution solution, IEnumerable<ISymbol> symbols, string format, CancellationToken cancellationToken) {
             // Note: Renamer can rename related symbols (particle methods), so those related symbols will become broken
             // Note: This may stop working in future versions because old symbols and new solutions should be not compatible
-            // todo: use SymbolFinder.FindSimilarSymbols to check is symbol valid
+            // todo: Use SymbolFinder.FindSimilarSymbols to check is symbol valid
             foreach (var symbol in symbols) {
                 try {
                     solution = await WithFormattedSymbol( solution, symbol, format, cancellationToken ).ConfigureAwait( false );

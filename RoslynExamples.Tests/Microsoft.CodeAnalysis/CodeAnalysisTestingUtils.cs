@@ -1,4 +1,5 @@
-﻿namespace Microsoft.CodeAnalysis {
+﻿#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
+namespace Microsoft.CodeAnalysis {
     using System;
     using System.Collections.Generic;
     using System.Collections.Immutable;
@@ -15,33 +16,21 @@
     public static class CodeAnalysisTestingUtils {
 
 
-        // Initialization/Compilation
-        public static CSharpCompilation CreateFakeCompilation((SourceText Text, string Path)[] documents) {
-            var trees = documents.Select( i => CSharpSyntaxTree.ParseText( i.Text, null, i.Path ) );
-            return CreateFakeCompilation().AddSyntaxTrees( trees );
-        }
-        private static CSharpCompilation CreateFakeCompilation() {
-            var mscorlib = MetadataReference.CreateFromFile( typeof( object ).Assembly.Location );
+        // Initialization
+        public static CSharpCompilation CreateFakeCompilation() {
             return CSharpCompilation.Create( "FakeCompilation" )
-                .WithOptions( new CSharpCompilationOptions( OutputKind.ConsoleApplication ) )
-                .WithReferences( mscorlib );
+                .WithReferences( Basic.Reference.Assemblies.Net50.All )
+                .WithOptions( new CSharpCompilationOptions( OutputKind.DynamicallyLinkedLibrary ) );
         }
-        // Initialization/Documents
-        public static IEnumerable<(SourceText Text, string Path)> LoadDocuments(string directory, params string[] names) {
-            foreach (var name in names) {
-                var path = Path.GetFullPath( Path.Combine( directory, name ) );
-                var text = File.ReadAllText( path );
-                yield return (SourceText.From( text ), path);
+        public static CSharpCompilation LoadDocuments(this CSharpCompilation compilation, params string[] paths) {
+            return compilation.AddSyntaxTrees( LoadDocuments( paths.Select( Path.GetFullPath ) ) );
+        }
+        private static IEnumerable<SyntaxTree> LoadDocuments(IEnumerable<string> paths) {
+            foreach (var path in paths) {
+                var text = SourceText.From( File.ReadAllText( path ) );
+                var tree = CSharpSyntaxTree.ParseText( text, null, path, default );
+                yield return tree;
             }
-        }
-        // Initialization/Utils
-        public static (SyntaxTree, SemanticModel) FindSyntaxTree(this Compilation compilation, string name) {
-            var tree = compilation.SyntaxTrees.Where( i => Path.GetFileName( i.FilePath ) == name ).SingleOrDefault() ?? throw new Exception( "Syntax tree is not found: " + name );
-            var model = compilation.GetSemanticModel( tree ) ?? throw new Exception( "Semantic model is null" );
-            return (tree, model);
-        }
-        public static MethodDeclarationSyntax FindMethod(this SyntaxTree tree, string name) {
-            return tree.GetRoot().DescendantNodes().OfType<MethodDeclarationSyntax>().SingleOrDefault( i => i.Identifier.Text == name ) ?? throw new Exception( "Method is not found: " + name );
         }
 
 
@@ -54,9 +43,40 @@
 
 
         // Generation
-        public static GeneratorRunResult GenerateAsync(ISourceGenerator generator, Compilation compilation, CancellationToken cancellationToken) {
+        public static async Task<GeneratorRunResult> GenerateAsync(ISourceGenerator generator, Compilation compilation, CancellationToken cancellationToken) {
             var driver = GetGeneratorDriver( generator, null, null, null );
             return driver.RunGenerators( compilation, cancellationToken ).GetRunResult().Results.Single();
+        }
+
+
+        // Utils/FindDocument
+        public static (SyntaxNode Root, SemanticModel Model) FindDocument(this Compilation compilation) {
+            var tree = compilation.SyntaxTrees.SingleOrDefault() ?? throw new Exception( "Document is not found" );
+            var model = compilation.GetSemanticModel( tree );
+            return (tree.GetRoot(), model);
+        }
+        public static (SyntaxNode Root, SemanticModel Model) FindDocument(this Compilation compilation, string name) {
+            var tree = compilation.SyntaxTrees.SingleOrDefault( i => Path.GetFileName( i.FilePath ) == name ) ?? throw new Exception( "Document is not found: " + name );
+            var model = compilation.GetSemanticModel( tree );
+            return (tree.GetRoot(), model);
+        }
+        // Utils/FindType
+        public static (BaseTypeDeclarationSyntax Type, SemanticModel Model) FindType(this (SyntaxNode Node, SemanticModel Model) tuple) {
+            var type = tuple.Node.GetMemberDeclarations<BaseTypeDeclarationSyntax>().SingleOrDefault() ?? throw new Exception( "Type is not found" );
+            return (type, tuple.Model);
+        }
+        public static (BaseTypeDeclarationSyntax Type, SemanticModel Model) FindType(this (SyntaxNode Node, SemanticModel Model) tuple, string name) {
+            var type = tuple.Node.GetMemberDeclarations<BaseTypeDeclarationSyntax>().SingleOrDefault( i => i.Identifier.Text == name ) ?? throw new Exception( "Type is not found: " + name );
+            return (type, tuple.Model);
+        }
+        // Utils/FindMethod
+        public static (MethodDeclarationSyntax Method, SemanticModel Model) FindMethod(this (SyntaxNode Node, SemanticModel Model) tuple) {
+            var method = tuple.Node.GetMemberDeclarations<MethodDeclarationSyntax>().SingleOrDefault() ?? throw new Exception( "Method is not found" );
+            return (method, tuple.Model);
+        }
+        public static (MethodDeclarationSyntax Method, SemanticModel Model) FindMethod(this (SyntaxNode Node, SemanticModel Model) tuple, string name) {
+            var method = tuple.Node.GetMemberDeclarations<MethodDeclarationSyntax>().SingleOrDefault( i => i.Identifier.Text == name ) ?? throw new Exception( "Method is not found: " + name );
+            return (method, tuple.Model);
         }
 
 
@@ -67,6 +87,10 @@
         // Helpers/Generation
         private static CSharpGeneratorDriver GetGeneratorDriver(ISourceGenerator generator, IEnumerable<AdditionalText>? additionalTexts, CSharpParseOptions? parseOptions, AnalyzerConfigOptionsProvider? analyzerConfigOptionsProvider) {
             return CSharpGeneratorDriver.Create( new[] { generator }, additionalTexts, parseOptions, analyzerConfigOptionsProvider );
+        }
+        // Helpers/SyntaxNode
+        private static IEnumerable<T> GetMemberDeclarations<T>(this SyntaxNode node) where T : MemberDeclarationSyntax {
+            return node.DescendantNodes( i => i is CompilationUnitSyntax or MemberDeclarationSyntax ).OfType<T>();
         }
 
 
