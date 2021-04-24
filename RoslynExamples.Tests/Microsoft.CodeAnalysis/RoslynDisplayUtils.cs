@@ -146,13 +146,14 @@
         }
         private static void AppendHierarchy(this HierarchicalStringBuilder builder, SyntaxNode scope, ImmutableArray<DependenciesAnalysis.Reference> references) {
             using (builder.AppendSection( scope )) {
-                if (scope is LocalDeclarationStatementSyntax or LocalFunctionStatementSyntax or ExpressionStatementSyntax) {
+                if (scope is StatementSyntax && scope.Parent?.Parent is MethodDeclarationSyntax) {
                     builder.AppendText( scope.ToString() );
                 }
                 foreach (var reference in references.Where( i => i.GetScope() == scope )) {
                     builder.AppendItem( reference );
                 }
-                foreach (var child in scope.ChildNodes().Where( IsScope )) {
+                foreach (var child in scope.ChildNodes().Where( IsScope )) { 
+                    // This loop enters into only direct children scopes, so it may not come to some scopes
                     builder.AppendHierarchy( child, references );
                 }
             }

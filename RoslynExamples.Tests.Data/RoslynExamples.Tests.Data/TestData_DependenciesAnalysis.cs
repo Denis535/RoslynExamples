@@ -48,8 +48,7 @@ namespace RoslynExamples.Tests.Data.DependenciesAnalysis {
             //_ = argument.Event( null );
         }
         public static void Example_03_Expressions_ElementAccess(Class argument) {
-            // Note: ElementAccessExpressionSyntax have IProperySymbol of indexer
-            // Note: But ConditionalAccessExpressionSyntax doesn't have
+            // Note: There is no way to get symbol for: indexer (in case of ConditionalAccessExpressionSyntax)
             _ = argument![ null ];
             _ = argument?[ null ];
             _ = argument!.Array![ 0 ];
@@ -60,7 +59,7 @@ namespace RoslynExamples.Tests.Data.DependenciesAnalysis {
             // Note: Lambda's parameters have implicit types
             _ = argument.Function( null );
             _ = argument.GenericFunction<object>( null );
-            _ = argument.OnCallback( i => { } );
+            _ = argument.OnCallback( i => null );
         }
         public static void Example_03_Expressions_Invocation_Operators(Class argument) {
             // Note: There is no way to get symbol for: true, false, implicit operators
@@ -84,8 +83,13 @@ namespace RoslynExamples.Tests.Data.DependenciesAnalysis {
 
     }
 
+    // Annotation
+    [AttributeUsage( AttributeTargets.All, AllowMultiple = false )]
+    public class AnnotationAttribute : Attribute {
+    }
 
     // Class
+    [Annotation]
     public class Class {
         public const object? Const = null;
 
@@ -107,7 +111,7 @@ namespace RoslynExamples.Tests.Data.DependenciesAnalysis {
         public TValue? GenericFunction<TValue>(TValue? argument) where TValue : class {
             return null;
         }
-        public object? OnCallback(Action<object> lambda) {
+        public object? OnCallback(Func<object?, object?> lambda) {
             return null;
         }
 
@@ -133,7 +137,7 @@ namespace RoslynExamples.Tests.Data.DependenciesAnalysis {
         public static bool operator !=(Class? left, Class? right) {
             return !ReferenceEquals( left, right );
         }
-        // Operators/Conversions
+        // Operators/Conversion
         public static explicit operator string?(Class? obj) {
             return obj?.ToString();
         }
@@ -146,31 +150,32 @@ namespace RoslynExamples.Tests.Data.DependenciesAnalysis {
 
     }
 
+    [Annotation]
     public class Class<T> where T : class {
     }
 
 
-    // Simple...
+    // Simple/Interface
     public interface ISimpleInterface {
         public object? Value { get; }
     }
-
+    // Simple/Class
     public class SimpleClass {
         public object? Value => null;
     }
-
+    // Simple/Struct
     public struct SimpleStruct {
         public object? Value => null;
     }
-
+    // Simple/Record
     public record SimpleRecord {
         public object? Value => null;
     }
-
+    // Simple/Enum
     public enum SimpleEnum {
         Value,
     }
-
+    // Simple/Delegate
     public delegate object? SimpleDelegate(object? argument);
 
 }

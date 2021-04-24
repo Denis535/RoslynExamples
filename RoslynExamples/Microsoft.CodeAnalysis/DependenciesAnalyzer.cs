@@ -138,8 +138,9 @@
 
         // Analyze
         public static DependenciesAnalysis Analyze(SyntaxNode syntax, SemanticModel model) {
-            // Note: Analyzer doesn't support references for: indexer and unary, binary, conversion operators.
-            // Note: Because there is no way to get symbol for indexer (in case of ConditionalAccessExpressionSyntax), true, false, implicit operators.
+            // Note: There is no way to get symbol for: indexer (in case of ConditionalAccessExpressionSyntax), true, false, implicit operators.
+            // Note: Analyzer doesn't support: indexer, unary, binary, conversion operators.
+            // Note: Analyzer doesn't support: lambda parameter's implicit types.
             if (syntax is null) throw new ArgumentNullException( nameof( syntax ) );
             if (model is null) throw new ArgumentNullException( nameof( model ) );
 
