@@ -111,9 +111,9 @@
             var simpleType = compilation.GetSpecialType( SpecialType.System_Object );
             var arrayType = compilation.CreateArrayTypeSymbol( compilation.GetSpecialType( SpecialType.System_Object ) );
 
-            var genericType = compilation.GetSpecialType( SpecialType.System_Collections_Generic_IList_T );
-            var genericType_Unbound = genericType.ConstructUnboundGenericType();
-            var genericType_Constructed = genericType.Construct(
+            var genericType_Unbound = compilation.GetSpecialType( SpecialType.System_Collections_Generic_IList_T ).ConstructUnboundGenericType();
+            var genericType_Original = compilation.GetSpecialType( SpecialType.System_Collections_Generic_IList_T );
+            var genericType_Constructed = compilation.GetSpecialType( SpecialType.System_Collections_Generic_IList_T ).Construct(
                 compilation.CreateArrayTypeSymbol( compilation.GetSpecialType( SpecialType.System_Nullable_T ).Construct( compilation.GetSpecialType( SpecialType.System_Int32 ) ) )
                 );
 
@@ -128,15 +128,15 @@
                 );
 
 
-            TestContext.WriteLine( GetDisplayString( simpleType, DependenciesAnalyzer.Deconstruct( simpleType ) ) );
-            TestContext.WriteLine( GetDisplayString( arrayType, DependenciesAnalyzer.Deconstruct( arrayType ) ) );
+            TestContext.WriteLine( GetDisplayString( simpleType, DependenciesAnalysis.Reference.Deconstruct( simpleType ) ) );
+            TestContext.WriteLine( GetDisplayString( arrayType, DependenciesAnalysis.Reference.Deconstruct( arrayType ) ) );
 
-            TestContext.WriteLine( GetDisplayString( genericType, DependenciesAnalyzer.Deconstruct( genericType ) ) );
-            TestContext.WriteLine( GetDisplayString( genericType_Unbound, DependenciesAnalyzer.Deconstruct( genericType_Unbound ) ) );
-            TestContext.WriteLine( GetDisplayString( genericType_Constructed, DependenciesAnalyzer.Deconstruct( genericType_Constructed ) ) );
+            TestContext.WriteLine( GetDisplayString( genericType_Unbound, DependenciesAnalysis.Reference.Deconstruct( genericType_Unbound ) ) );
+            TestContext.WriteLine( GetDisplayString( genericType_Original, DependenciesAnalysis.Reference.Deconstruct( genericType_Original ) ) );
+            TestContext.WriteLine( GetDisplayString( genericType_Constructed, DependenciesAnalysis.Reference.Deconstruct( genericType_Constructed ) ) );
 
-            TestContext.WriteLine( GetDisplayString( pointerType, DependenciesAnalyzer.Deconstruct( pointerType ) ) );
-            TestContext.WriteLine( GetDisplayString( funcPointerType, DependenciesAnalyzer.Deconstruct( funcPointerType ) ) );
+            TestContext.WriteLine( GetDisplayString( pointerType, DependenciesAnalysis.Reference.Deconstruct( pointerType ) ) );
+            TestContext.WriteLine( GetDisplayString( funcPointerType, DependenciesAnalysis.Reference.Deconstruct( funcPointerType ) ) );
         }
 
 

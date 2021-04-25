@@ -114,12 +114,12 @@
 
     // - ITypeSymbol
     // - INamedTypeSymbol
-    // - ITypeParameterSymbol
+    // - IErrorTypeSymbol
     // - IDynamicTypeSymbol
+    // - ITypeParameterSymbol
     // - IPointerTypeSymbol
     // - IFunctionPointerTypeSymbol
     // - IArrayTypeSymbol
-    // - IErrorTypeSymbol
 
     // - IFieldSymbol
     // - IPropertySymbol
@@ -151,48 +151,13 @@
             return new DependenciesAnalysis( references );
         }
 
-        // GetTypeSymbols
-        public static IEnumerable<ITypeSymbol> GetTypeSymbols(DependenciesAnalysis.Reference reference) {
-            return GetTypeSymbols( reference.Symbol );
-        }
-
-        // Deconstruct
-        public static IEnumerable<ITypeSymbol> Deconstruct(ITypeSymbol symbol) {
-            return GetSimpleTypeSymbols( symbol );
-        }
-
 
         // Helpers/Reference
         private static DependenciesAnalysis.Reference CreateReference(SyntaxNode syntax, SemanticModel model) {
-            var symbol = GetSymbol( syntax, model );
+            var symbol = GetReferenceSymbol( syntax, model );
             return new DependenciesAnalysis.Reference( syntax, symbol );
         }
-        // Helpers/SyntaxNode
-        private static IEnumerable<SyntaxNode> FindReferences(this SyntaxNode syntax) {
-            return syntax
-                .DescendantNodes( i => !i.IsReference() || i == syntax )
-                .Where( IsReference )
-                .SelectMany( GetDeconstructedReferences );
-        }
-        private static bool IsReference(this SyntaxNode syntax) {
-            return
-                (syntax is TypeSyntax and not OmittedTypeArgumentSyntax) ||
-                syntax is LiteralExpressionSyntax ||
-                syntax is InterpolatedStringExpressionSyntax;
-        }
-        private static IEnumerable<SyntaxNode> GetDeconstructedReferences(SyntaxNode syntax) {
-            if (syntax is RefTypeSyntax refType) {
-                return refType.Type.AsEnumerable();
-            }
-            if (syntax is LiteralExpressionSyntax literal && literal.Kind() == SyntaxKind.ArgListExpression) {
-                return Utils.Concat( literal.AsEnumerable(), literal.FindReferences() );
-            }
-            if (syntax is InterpolatedStringExpressionSyntax @string) {
-                return Utils.Concat( @string.AsEnumerable(), @string.FindReferences() );
-            }
-            return syntax.AsEnumerable();
-        }
-        private static ISymbol? GetSymbol(SyntaxNode syntax, SemanticModel model) {
+        private static ISymbol? GetReferenceSymbol(SyntaxNode syntax, SemanticModel model) {
             // Note: There is no symbol for: Alias, nameof, nameof( Method ), null
             if (syntax is TypeSyntax) {
                 return model.GetSymbolInfo( syntax ).Symbol;
@@ -205,96 +170,54 @@
             }
             throw new ArgumentException( "SyntaxNode is invalid: " + syntax.Kind() );
         }
-        // Helpers/ISymbol
-        private static IEnumerable<ITypeSymbol> GetTypeSymbols(ISymbol? symbol) {
-            if (symbol is null) {
-                return Enumerable.Empty<ITypeSymbol>();
-            }
-
-            if (symbol is INamespaceSymbol @namespace) {
-                return Enumerable.Empty<ITypeSymbol>();
-            }
-            if (symbol is ITypeSymbol type) {
-                return type.AsEnumerable();
-            }
-
-            if (symbol is IFieldSymbol field) {
-                return field.Type.AsEnumerable();
-            }
-            if (symbol is IPropertySymbol property) {
-                return Utils.Concat(
-                    property.Type.AsEnumerable(),
-                    property.Parameters.Select( i => i.Type )
-                    );
-            }
-            if (symbol is IEventSymbol @event) {
-                return @event.Type.AsEnumerable();
-            }
-            if (symbol is IMethodSymbol method) {
-                // Should we return generic constraint types???
-                return Utils.Concat(
-                    method.TypeArguments,
-                    method.Parameters.Select( i => i.Type ),
-                    method.ReturnType.AsEnumerable()
-                    );
-            }
-
-            if (symbol is IParameterSymbol parameter) {
-                return parameter.Type.AsEnumerable();
-            }
-            if (symbol is ILocalSymbol local) {
-                return local.Type.AsEnumerable();
-            }
-            if (symbol is IDiscardSymbol discard) {
-                return discard.Type.AsEnumerable();
-            }
-            throw new ArgumentException( "Symbol is invalid: " + symbol );
+        // Helpers/SyntaxNode
+        private static IEnumerable<SyntaxNode> FindReferences(this SyntaxNode syntax) {
+            return syntax
+                .DescendantNodes( i => !i.IsReference() || i == syntax )
+                .Where( IsReference )
+                .SelectMany( GetSimpleReferences );
         }
-        private static IEnumerable<ITypeSymbol> GetSimpleTypeSymbols(this ITypeSymbol symbol) {
-            if (symbol is INamedTypeSymbol type) {
-                if (type.IsGenericType) {
-                    // Should we return generic constraint types???
-                    return Utils.Concat(
-                        type.ConstructUnboundGenericType().AsEnumerable(),
-                        type.OriginalDefinition.AsEnumerable(),
-                        type.TypeArguments.SelectMany( GetSimpleTypeSymbols )
-                        );
-                } else {
-                    return type.AsEnumerable();
-                }
+        private static bool IsReference(this SyntaxNode syntax) {
+            return
+                (syntax is TypeSyntax and not OmittedTypeArgumentSyntax) ||
+                syntax is LiteralExpressionSyntax ||
+                syntax is InterpolatedStringExpressionSyntax;
+        }
+        private static IEnumerable<SyntaxNode> GetSimpleReferences(SyntaxNode syntax) {
+            if (syntax is RefTypeSyntax refType) {
+                return refType.Type.AsEnumerable();
             }
-            if (symbol is ITypeParameterSymbol typeParameter) {
-                return typeParameter.AsEnumerable();
+            if (syntax is LiteralExpressionSyntax literal && literal.Kind() == SyntaxKind.ArgListExpression) {
+                return Utils.Concat( literal.AsEnumerable(), literal.FindReferences() );
             }
-            if (symbol is IDynamicTypeSymbol dynamicType) {
-                return dynamicType.AsEnumerable();
+            if (syntax is InterpolatedStringExpressionSyntax @string) {
+                return Utils.Concat( @string.AsEnumerable(), @string.FindReferences() );
             }
-            if (symbol is IPointerTypeSymbol pointerType) {
-                return pointerType.PointedAtType.GetSimpleTypeSymbols();
-            }
-            if (symbol is IFunctionPointerTypeSymbol functionPointerType) {
-                var signature = functionPointerType.Signature;
-                return Utils.Concat(
-                    signature.Parameters.Select( i => i.Type ).SelectMany( GetSimpleTypeSymbols ),
-                    signature.ReturnType.GetSimpleTypeSymbols()
-                    );
-            }
-            if (symbol is IArrayTypeSymbol array) {
-                return array.ElementType.GetSimpleTypeSymbols();
-            }
-            return symbol.AsEnumerable();
+            return syntax.AsEnumerable();
         }
 
     }
-    public class DependenciesAnalysis {
+    public partial class DependenciesAnalysis {
+
+        public ImmutableArray<Reference> References { get; } = default!;
+
+        internal DependenciesAnalysis(ImmutableArray<Reference> references) {
+            References = references;
+        }
+
+    }
+    public partial class DependenciesAnalysis {
         public class Reference {
             public SyntaxNode Syntax { get; }
             public ISymbol? Symbol { get; }
+            public IEnumerable<ITypeSymbol> TypeSymbols => (Symbol != null) ? GetTypeSymbols( Symbol ) : Enumerable.Empty<ITypeSymbol>();
 
             internal Reference(SyntaxNode syntax, ISymbol? symbol) {
                 (Syntax, Symbol) = (syntax, symbol);
             }
 
+
+            // Utils
             public override string ToString() {
                 if (Symbol != null) {
                     return string.Format( "Reference: {0} ({1})", Syntax, Symbol.Kind );
@@ -302,15 +225,105 @@
                     return string.Format( "Reference: {0}", Syntax );
                 }
             }
+
+            // Utils/Deconstruct
+            public static IEnumerable<ITypeSymbol> Deconstruct(ITypeSymbol symbol) {
+                return GetSimpleTypeSymbols( symbol );
+            }
+
+
+            // Helpers/ISymbol
+            private static IEnumerable<ITypeSymbol> GetTypeSymbols(ISymbol symbol) {
+                switch (symbol) {
+                    case INamespaceSymbol @namespace: {
+                        return Enumerable.Empty<ITypeSymbol>();
+                    }
+                    case ITypeSymbol type: {
+                        return type.AsEnumerable();
+                    }
+
+                    case IFieldSymbol field: {
+                        return field.Type.AsEnumerable();
+                    }
+                    case IPropertySymbol property: {
+                        return Utils.Concat(
+                            property.Type.AsEnumerable(),
+                            property.Parameters.Select( i => i.Type )
+                            );
+                    }
+                    case IEventSymbol @event: {
+                        return @event.Type.AsEnumerable();
+                    }
+                    case IMethodSymbol method: {
+                        // Should we return generic constraint types???
+                        return Utils.Concat(
+                            method.TypeArguments,
+                            method.Parameters.Select( i => i.Type ),
+                            method.ReturnType.AsEnumerable()
+                            );
+                    }
+
+                    case IParameterSymbol parameter: {
+                        return parameter.Type.AsEnumerable();
+                    }
+                    case ILocalSymbol local: {
+                        return local.Type.AsEnumerable();
+                    }
+                    case IDiscardSymbol discard: {
+                        return discard.Type.AsEnumerable();
+                    }
+
+                    default: {
+                        throw new ArgumentException( "Symbol is invalid: " + symbol );
+                    }
+                }
+            }
+            // Helpers/ITypeSymbol
+            private static IEnumerable<ITypeSymbol> GetSimpleTypeSymbols(ITypeSymbol symbol) {
+                switch (symbol) {
+                    case INamedTypeSymbol type when type.IsUnboundGenericType: {
+                        return type.AsEnumerable();
+                    }
+                    case INamedTypeSymbol type when type.IsGenericType: {
+                        // Should we return generic constraint types???
+                        return Utils.Concat(
+                            type.ConstructUnboundGenericType().AsEnumerable(),
+                            type.OriginalDefinition.AsEnumerable(),
+                            type.TypeArguments.SelectMany( GetSimpleTypeSymbols )
+                            );
+                    }
+                    case INamedTypeSymbol type: {
+                        return type.AsEnumerable();
+                    }
+                    case IDynamicTypeSymbol dynamicType: {
+                        return dynamicType.AsEnumerable();
+                    }
+                    case ITypeParameterSymbol typeParameter: {
+                        return typeParameter.AsEnumerable();
+                    }
+
+                    case IPointerTypeSymbol pointerType: {
+                        return pointerType.PointedAtType.Map( GetSimpleTypeSymbols );
+                    }
+                    case IFunctionPointerTypeSymbol functionPointerType: {
+                        var signature = functionPointerType.Signature;
+                        return Utils.Concat(
+                            signature.Parameters.Select( i => i.Type ).SelectMany( GetSimpleTypeSymbols ),
+                            signature.ReturnType.Map( GetSimpleTypeSymbols )
+                            );
+                    }
+
+                    case IArrayTypeSymbol array: {
+                        return array.ElementType.Map( GetSimpleTypeSymbols );
+                    }
+
+                    default: {
+                        throw new ArgumentException( "Symbol is invalid: " + symbol );
+                    }
+                }
+            }
+
+
         }
-
-        public ImmutableArray<Reference> References { get; } = default!;
-
-
-        internal DependenciesAnalysis(ImmutableArray<Reference> references) {
-            References = references;
-        }
-
-
     }
 }
