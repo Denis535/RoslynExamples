@@ -22,6 +22,7 @@ Provides code refactoring actions for symbols names refactoring.
 Generates `ToString` method for each partial class. Method `ToString` returns string with type and it's members names.
 
 # RoslynExamples.Tests
+
 * Tests_00_CodeAnalysis
 Contains tests for: diagnostic analysis, source generation, dependencies analysis.
 

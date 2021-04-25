@@ -43,14 +43,14 @@ namespace RoslynExamples {
 
 
         // Helpers
-        private static string GetSourceName(CompilationUnitSyntax syntax) {
-            return Path.GetFileNameWithoutExtension( syntax.SyntaxTree.FilePath ) + $".Generated.{Guid.NewGuid()}.cs";
+        private static string GetSourceName(CompilationUnitSyntax node) {
+            return Path.GetFileNameWithoutExtension( node.SyntaxTree.FilePath ) + $".Generated.{Guid.NewGuid()}.cs";
         }
-        private static CompilationUnitSyntax? GetSourceContent(CompilationUnitSyntax syntax, SemanticModel model) {
-            syntax = (CompilationUnitSyntax) new ExampleSyntaxProducer0( model ).Visit( syntax );
-            syntax = (CompilationUnitSyntax) new ExampleSyntaxProducer1().Visit( syntax );
-            syntax = (CompilationUnitSyntax) new ExampleSyntaxProducer2().Visit( syntax );
-            if (syntax.DescendantNodes().OfType<TypeDeclarationSyntax>().Any()) return syntax;
+        private static CompilationUnitSyntax? GetSourceContent(CompilationUnitSyntax node, SemanticModel model) {
+            node = (CompilationUnitSyntax) new ExampleSyntaxProducer0( model ).Visit( node );
+            node = (CompilationUnitSyntax) new ExampleSyntaxProducer1().Visit( node );
+            node = (CompilationUnitSyntax) new ExampleSyntaxProducer2().Visit( node );
+            if (node.DescendantNodes().OfType<TypeDeclarationSyntax>().Any()) return node;
             return null;
         }
 
@@ -62,8 +62,8 @@ namespace RoslynExamples {
 
         public List<CompilationUnitSyntax> Units { get; } = new List<CompilationUnitSyntax>(); // todo: should I use ConcurrentBag???
 
-        void ISyntaxReceiver.OnVisitSyntaxNode(SyntaxNode syntax) {
-            if (syntax is CompilationUnitSyntax unit) Units.Add( unit );
+        void ISyntaxReceiver.OnVisitSyntaxNode(SyntaxNode node) {
+            if (node is CompilationUnitSyntax unit) Units.Add( unit );
         }
 
     }
@@ -73,34 +73,43 @@ namespace RoslynExamples {
 
         private SemanticModel Model { get; } = default!;
 
+
         public ExampleSyntaxProducer0(SemanticModel model) {
             Model = model;
         }
 
 
         // Interface
-        //public override SyntaxNode? VisitInterfaceDeclaration(InterfaceDeclarationSyntax syntax) {
-        //    return base.VisitInterfaceDeclaration( syntax );
+        //public override SyntaxNode? VisitInterfaceDeclaration(InterfaceDeclarationSyntax node) {
+        //    return base.VisitInterfaceDeclaration( node );
         //}
         // Class
-        public override SyntaxNode? VisitClassDeclaration(ClassDeclarationSyntax syntax) {
-            var annotation = GetSyntaxAnnotations( syntax, Model ); // Pass original syntax!!!
-            syntax = (ClassDeclarationSyntax) base.VisitClassDeclaration( syntax )!; // Pass original syntax!!!
-            return syntax.WithAdditionalAnnotations( annotation );
+        public override SyntaxNode? VisitClassDeclaration(ClassDeclarationSyntax node) {
+            if (Filter( node )) {
+                var annotation = GetSyntaxAnnotations( node, Model ); // Pass original syntax!!!
+                node = (ClassDeclarationSyntax) base.VisitClassDeclaration( node )!; // Pass original syntax!!!
+                return node.WithAdditionalAnnotations( annotation );
+            } else {
+                node = (ClassDeclarationSyntax) base.VisitClassDeclaration( node )!; // Pass original syntax!!!
+                return node;
+            }
         }
         // Struct
-        //public override SyntaxNode? VisitStructDeclaration(StructDeclarationSyntax syntax) {
-        //    return base.VisitStructDeclaration( syntax );
+        //public override SyntaxNode? VisitStructDeclaration(StructDeclarationSyntax node) {
+        //    return base.VisitStructDeclaration( node );
         //}
         // Record
-        //public override SyntaxNode? VisitRecordDeclaration(RecordDeclarationSyntax syntax) {
-        //    return base.VisitRecordDeclaration( syntax );
+        //public override SyntaxNode? VisitRecordDeclaration(RecordDeclarationSyntax node) {
+        //    return base.VisitRecordDeclaration( node );
         //}
 
 
         // Helpers
-        private static IEnumerable<SyntaxAnnotation> GetSyntaxAnnotations(ClassDeclarationSyntax syntax, SemanticModel model) {
-            var type = model.GetDeclaredSymbol( syntax )!;
+        private static bool Filter(ClassDeclarationSyntax node) {
+            return CodeAnalysisUtils.IsPartial( node ) && !CodeAnalysisUtils.IsStatic( node );
+        }
+        private static IEnumerable<SyntaxAnnotation> GetSyntaxAnnotations(ClassDeclarationSyntax node, SemanticModel model) {
+            var type = model.GetDeclaredSymbol( node )!;
             var members = type.GetMembers().Where( i => i.Kind != SymbolKind.NamedType ).Where( i => i.CanBeReferencedByName ).Where( i => !i.IsImplicitlyDeclared ).ToArray();
             yield return new SyntaxAnnotation( "Type", type.Name );
             foreach (var member in members) {
@@ -116,49 +125,49 @@ namespace RoslynExamples {
 
 
         // CompilationUnit
-        public override SyntaxNode? VisitCompilationUnit(CompilationUnitSyntax syntax) {
-            syntax = CompilationUnit()
-                .WithExterns( syntax.Externs )
-                .WithUsings( syntax.Usings )
-                .AddMembers( syntax.Members.OfType<ClassDeclarationSyntax>().Where( Filter ).ToArray() )
-                .AddMembers( syntax.Members.OfType<NamespaceDeclarationSyntax>().ToArray() );
-            return base.VisitCompilationUnit( syntax );
+        public override SyntaxNode? VisitCompilationUnit(CompilationUnitSyntax node) {
+            node = CompilationUnit()
+                .WithExterns( node.Externs )
+                .WithUsings( node.Usings )
+                .AddMembers( node.Members.OfType<ClassDeclarationSyntax>().Where( Filter ).ToArray() )
+                .AddMembers( node.Members.OfType<NamespaceDeclarationSyntax>().ToArray() );
+            return base.VisitCompilationUnit( node );
         }
         // Namespace
-        public override SyntaxNode? VisitNamespaceDeclaration(NamespaceDeclarationSyntax syntax) {
-            syntax = NamespaceDeclaration( syntax.Name )
-                .WithExterns( syntax.Externs )
-                .WithUsings( syntax.Usings )
-                .AddMembers( syntax.Members.OfType<ClassDeclarationSyntax>().Where( Filter ).ToArray() );
-            return base.VisitNamespaceDeclaration( syntax );
+        public override SyntaxNode? VisitNamespaceDeclaration(NamespaceDeclarationSyntax node) {
+            node = NamespaceDeclaration( node.Name )
+                .WithExterns( node.Externs )
+                .WithUsings( node.Usings )
+                .AddMembers( node.Members.OfType<ClassDeclarationSyntax>().Where( Filter ).ToArray() );
+            return base.VisitNamespaceDeclaration( node );
         }
 
 
         // Interface
-        //public override SyntaxNode? VisitInterfaceDeclaration(InterfaceDeclarationSyntax syntax) {
-        //    return base.VisitInterfaceDeclaration( syntax );
+        //public override SyntaxNode? VisitInterfaceDeclaration(InterfaceDeclarationSyntax node) {
+        //    return base.VisitInterfaceDeclaration( node );
         //}
         // Class
-        public override SyntaxNode? VisitClassDeclaration(ClassDeclarationSyntax syntax) {
-            syntax = ClassDeclaration( syntax.Identifier )
-                .WithModifiers( syntax.Modifiers )
-                .WithTypeParameterList( syntax.TypeParameterList )
-                .AddMembers( syntax.Members.OfType<ClassDeclarationSyntax>().Where( Filter ).ToArray() )
-                .CopyAnnotationsFrom( syntax );
-            return base.VisitClassDeclaration( syntax );
+        public override SyntaxNode? VisitClassDeclaration(ClassDeclarationSyntax node) {
+            node = ClassDeclaration( node.Identifier )
+                .WithModifiers( node.Modifiers )
+                .WithTypeParameterList( node.TypeParameterList )
+                .AddMembers( node.Members.OfType<ClassDeclarationSyntax>().Where( Filter ).ToArray() )
+                .CopyAnnotationsFrom( node );
+            return base.VisitClassDeclaration( node );
         }
         // Struct
-        //public override SyntaxNode? VisitStructDeclaration(StructDeclarationSyntax syntax) {
-        //    return base.VisitStructDeclaration( syntax );
+        //public override SyntaxNode? VisitStructDeclaration(StructDeclarationSyntax node) {
+        //    return base.VisitStructDeclaration( node );
         //}
         // Record
-        //public override SyntaxNode? VisitRecordDeclaration(RecordDeclarationSyntax syntax) {
-        //    return base.VisitRecordDeclaration( syntax );
+        //public override SyntaxNode? VisitRecordDeclaration(RecordDeclarationSyntax node) {
+        //    return base.VisitRecordDeclaration( node );
         //}
 
 
         // Method
-        //public override SyntaxNode? VisitMethodDeclaration(MethodDeclarationSyntax syntax) {
+        //public override SyntaxNode? VisitMethodDeclaration(MethodDeclarationSyntax node) {
         //    syntax = MethodDeclaration( node.ReturnType, node.Identifier )
         //        .WithModifiers( node.Modifiers )
         //        .WithTypeParameterList( node.TypeParameterList )
@@ -170,8 +179,8 @@ namespace RoslynExamples {
 
 
         // Helpers
-        private static bool Filter(ClassDeclarationSyntax syntax) {
-            return CodeAnalysisUtils.IsPartial( syntax ) && !CodeAnalysisUtils.IsStatic( syntax );
+        private static bool Filter(ClassDeclarationSyntax node) {
+            return CodeAnalysisUtils.IsPartial( node ) && !CodeAnalysisUtils.IsStatic( node );
         }
 
 
@@ -182,28 +191,28 @@ namespace RoslynExamples {
 
 
         // Interface
-        //public override SyntaxNode? VisitInterfaceDeclaration(InterfaceDeclarationSyntax syntax) {
-        //    return base.VisitInterfaceDeclaration( syntax );
+        //public override SyntaxNode? VisitInterfaceDeclaration(InterfaceDeclarationSyntax node) {
+        //    return base.VisitInterfaceDeclaration( node );
         //}
         // Class
-        public override SyntaxNode? VisitClassDeclaration(ClassDeclarationSyntax syntax) {
-            syntax = syntax.AddMembers( GetMethodDeclarationSyntax_ToString( syntax ) );
-            return base.VisitClassDeclaration( syntax );
+        public override SyntaxNode? VisitClassDeclaration(ClassDeclarationSyntax node) {
+            node = node.AddMembers( GetMethodDeclarationSyntax_ToString( node ) );
+            return base.VisitClassDeclaration( node );
         }
         // Struct
-        //public override SyntaxNode? VisitStructDeclaration(StructDeclarationSyntax syntax) {
-        //    return base.VisitStructDeclaration( syntax );
+        //public override SyntaxNode? VisitStructDeclaration(StructDeclarationSyntax node) {
+        //    return base.VisitStructDeclaration( node );
         //}
         // Record
-        //public override SyntaxNode? VisitRecordDeclaration(RecordDeclarationSyntax syntax) {
-        //    return base.VisitRecordDeclaration( syntax );
+        //public override SyntaxNode? VisitRecordDeclaration(RecordDeclarationSyntax node) {
+        //    return base.VisitRecordDeclaration( node );
         //}
 
 
         // Helpers
-        private static MethodDeclarationSyntax GetMethodDeclarationSyntax_ToString(ClassDeclarationSyntax syntax) {
-            var type = syntax.GetAnnotations( "Type" ).Single()!.Data!;
-            var members = syntax.GetAnnotations( "Type.Member" ).Select( i => i.Data! ).ToArray();
+        private static MethodDeclarationSyntax GetMethodDeclarationSyntax_ToString(ClassDeclarationSyntax node) {
+            var type = node.GetAnnotations( "Type" ).Single()!.Data!;
+            var members = node.GetAnnotations( "Type.Member" ).Select( i => i.Data! ).ToArray();
             return GetMethodDeclarationSyntax_ToString( type, members );
         }
         private static MethodDeclarationSyntax GetMethodDeclarationSyntax_ToString(string type, string[] members) {
@@ -217,7 +226,7 @@ namespace RoslynExamples {
             if (!members.Any()) {
                 return string.Format( "Type: {0}", type );
             } else {
-                return string.Format( "Type: {0}, {1}", type, members.Join() );
+                return string.Format( "Type: {0}, Members: {1}", type, members.Join() );
             }
         }
 
