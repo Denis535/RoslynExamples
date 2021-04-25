@@ -10,7 +10,7 @@ namespace RoslynExamples {
     using Microsoft.CodeAnalysis.CSharp;
     using Microsoft.CodeAnalysis.Diagnostics;
 
-    // Note: Code fixes don't support project-level diagnostic (without location)
+    // Note: Code fixes don't support compilation-level diagnostic (without location)
     [DiagnosticAnalyzer( LanguageNames.CSharp )]
     public class ExampleAnalyzer0002 : DiagnosticAnalyzer {
 

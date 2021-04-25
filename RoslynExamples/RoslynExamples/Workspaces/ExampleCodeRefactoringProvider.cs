@@ -18,7 +18,9 @@
             var solution = context.Document.Project.Solution;
             var model = await context.Document.GetSemanticModelAsync( context.CancellationToken ).ConfigureAwait( false ) ?? throw new Exception( "Semantic model is not found" );
             var root = await context.Document.GetSyntaxRootAsync( context.CancellationToken ).ConfigureAwait( false ) ?? throw new Exception( "Syntax root is not found" );
-            var symbols = CodeAnalysisUtils.GetSymbols( model, root, context.Span, context.CancellationToken ).Where( CodeAnalysisUtils.CanBeRenamed ).Reverse().ToArray();
+            
+            var span = context.Span;
+            var symbols = CodeAnalysisUtils.FindSymbols( model, root, span, context.CancellationToken ).Where( CodeAnalysisUtils.CanBeRenamed ).Reverse().ToArray();
             if (!symbols.Any()) return;
 
             context.RegisterRefactoring( $"Make symbols '{symbols.Join( i => i.Name )}' start/end with underscore ({GetType().Name})", Action );

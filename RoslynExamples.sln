@@ -11,6 +11,11 @@ Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "Utils", "Utils\Utils.shproj
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RoslynExamples.Tests.Data", "RoslynExamples.Tests.Data\RoslynExamples.Tests.Data.csproj", "{531121F9-0145-4625-9A22-82CDE9161DC6}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{55B19E0D-AF28-4255-9CCA-0E8BED487CEA}"
+	ProjectSection(SolutionItems) = preProject
+		Readme.md = Readme.md
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
 		Utils\Utils.projitems*{5ce07f91-f848-4ad1-a869-5cce9a8006e3}*SharedItemsImports = 5

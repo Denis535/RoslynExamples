@@ -6,26 +6,17 @@ namespace RoslynExamples.Tests.Data.SourceGeneration {
 
     public class Class {
         public object? Value { get; set; }
-        public object? Func(object? argument) {
-            return default;
-        }
     }
     public partial class PartialClass {
-        public object? Value { get; set; }
-        public object? Func(object? argument) {
-            return default;
+        public partial class NestedPartialClass {
+            public object? Value { get; set; }
         }
+        public object? Value { get; set; }
     }
     public partial class PartialClass<T> where T : class {
         public object? Value { get; set; }
-        public object? Func(object? argument) {
-            return default;
-        }
     }
     public static partial class StaticPartialClass {
         public static object? Value { get; set; }
-        public static object? Func(object? argument) {
-            return default;
-        }
     }
 }

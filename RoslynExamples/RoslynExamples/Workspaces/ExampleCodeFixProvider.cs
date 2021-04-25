@@ -18,7 +18,9 @@
             var solution = context.Document.Project.Solution;
             var model = await context.Document.GetSemanticModelAsync( context.CancellationToken ).ConfigureAwait( false ) ?? throw new Exception( "Semantic model is not found" );
             var root = await context.Document.GetSyntaxRootAsync( context.CancellationToken ).ConfigureAwait( false ) ?? throw new Exception( "Syntax root is not found" );
-            var symbol = CodeAnalysisUtils.GetSymbol( model, root, context.Span, context.CancellationToken );
+
+            var location = context.Span;
+            var symbol = CodeAnalysisUtils.FindSymbol( model, root, location, context.CancellationToken );
             if (symbol == null) return;
 
             foreach (var diagnostic in context.Diagnostics) {
