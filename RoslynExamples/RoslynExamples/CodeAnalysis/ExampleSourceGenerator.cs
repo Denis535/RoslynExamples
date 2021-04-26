@@ -85,7 +85,7 @@ namespace RoslynExamples {
         //}
         // Class
         public override SyntaxNode? VisitClassDeclaration(ClassDeclarationSyntax node) {
-            if (Filter( node )) {
+            if (ExampleSyntaxProducer1.IsSupported( node )) {
                 var annotation = GetSyntaxAnnotations( node, Model ); // Pass original syntax!!!
                 node = (ClassDeclarationSyntax) base.VisitClassDeclaration( node )!; // Pass original syntax!!!
                 return node.WithAdditionalAnnotations( annotation );
@@ -105,9 +105,6 @@ namespace RoslynExamples {
 
 
         // Helpers
-        private static bool Filter(ClassDeclarationSyntax node) {
-            return CodeAnalysisUtils.IsPartial( node ) && !CodeAnalysisUtils.IsStatic( node );
-        }
         private static IEnumerable<SyntaxAnnotation> GetSyntaxAnnotations(ClassDeclarationSyntax node, SemanticModel model) {
             var type = model.GetDeclaredSymbol( node )!;
             var members = type.GetMembers().Where( i => i.Kind != SymbolKind.NamedType ).Where( i => i.CanBeReferencedByName ).Where( i => !i.IsImplicitlyDeclared ).ToArray();
@@ -129,7 +126,7 @@ namespace RoslynExamples {
             node = CompilationUnit()
                 .WithExterns( node.Externs )
                 .WithUsings( node.Usings )
-                .AddMembers( node.Members.OfType<ClassDeclarationSyntax>().Where( Filter ).ToArray() )
+                .AddMembers( node.Members.OfType<ClassDeclarationSyntax>().Where( IsSupported ).ToArray() )
                 .AddMembers( node.Members.OfType<NamespaceDeclarationSyntax>().ToArray() );
             return base.VisitCompilationUnit( node );
         }
@@ -138,7 +135,7 @@ namespace RoslynExamples {
             node = NamespaceDeclaration( node.Name )
                 .WithExterns( node.Externs )
                 .WithUsings( node.Usings )
-                .AddMembers( node.Members.OfType<ClassDeclarationSyntax>().Where( Filter ).ToArray() );
+                .AddMembers( node.Members.OfType<ClassDeclarationSyntax>().Where( IsSupported ).ToArray() );
             return base.VisitNamespaceDeclaration( node );
         }
 
@@ -152,7 +149,7 @@ namespace RoslynExamples {
             node = ClassDeclaration( node.Identifier )
                 .WithModifiers( node.Modifiers )
                 .WithTypeParameterList( node.TypeParameterList )
-                .AddMembers( node.Members.OfType<ClassDeclarationSyntax>().Where( Filter ).ToArray() )
+                .AddMembers( node.Members.OfType<ClassDeclarationSyntax>().Where( IsSupported ).ToArray() )
                 .CopyAnnotationsFrom( node );
             return base.VisitClassDeclaration( node );
         }
@@ -179,7 +176,7 @@ namespace RoslynExamples {
 
 
         // Helpers
-        private static bool Filter(ClassDeclarationSyntax node) {
+        internal static bool IsSupported(ClassDeclarationSyntax node) {
             return CodeAnalysisUtils.IsPartial( node ) && !CodeAnalysisUtils.IsStatic( node );
         }
 
