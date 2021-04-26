@@ -266,6 +266,9 @@
                     case IParameterSymbol parameter: {
                         return parameter.Type.AsEnumerable();
                     }
+                    case ILabelSymbol label: {
+                        return Enumerable.Empty<ITypeSymbol>();
+                    }
                     case ILocalSymbol local: {
                         return local.Type.AsEnumerable();
                     }
