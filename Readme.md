@@ -2,38 +2,42 @@
 
 * `ExampleAnalyzerTemplate`
 
-Just analyzer example.
+  Just simple analyzer example.
 
 * `ExampleAnalyzer0000`
 
-Analyzer checks symbol naming rule.
+  Checks symbol naming rule.
 
 * `ExampleAnalyzer0001`
 
-Analyzer checks symbol naming rule.
+  Checks symbol naming rule.
 
 * `ExampleAnalyzer0002`
 
-Analyzer checks compilation naming rule.
+  Checks compilation naming rule.
 
 * `ExampleCodeFixProvider`
 
-Provides code fix actions for: `ExampleAnalyzer0000` and `ExampleAnalyzer0001`. 
+  Provides code actions for symbols naming fixing.
 
 * `ExampleCodeRefactoringProvider`
 
-Provides code refactoring actions for symbols names refactoring.
+  Provides code actions for symbols naming refactoring.
 
 * `ExampleSourceGenerator`
 
-Generates `ToString` method for each partial class. Method `ToString` returns string with type and it's members names.
+  Generates `ToString` method for each partial class. Method `ToString` returns string with type and it's members names.
+
+* `DependenciesAnalyzer`
+
+  Searches references on namespaces, types, members, misc.
 
 # RoslynExamples.Tests
 
 * `Tests_00_CodeAnalysis`
 
-Contains tests for: diagnostic analysis, source generation, dependencies analysis.
+  Contains tests for: diagnostic analysis, source generation, dependencies analysis.
 
 * `Tests_01_Workspaces`
 
-Contains tests for: fixing, refactoring.
+  Contains tests for: fixing, refactoring.

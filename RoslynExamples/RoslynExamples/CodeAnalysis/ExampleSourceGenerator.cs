@@ -213,12 +213,12 @@ namespace RoslynExamples {
         private static MethodDeclarationSyntax GetMethodDeclarationSyntax_ToString(ClassDeclarationSyntax node) {
             var type = node.GetAnnotations( "Type" ).Single()!.Data!;
             var members = node.GetAnnotations( "Type.Member" ).Select( i => i.Data! ).ToArray();
-            return GetMethodDeclarationSyntax_ToString( type, members );
+            return GetMethodDeclarationSyntax_ToString( GetStringValue( type, members ) );
         }
-        private static MethodDeclarationSyntax GetMethodDeclarationSyntax_ToString(string type, string[] members) {
+        private static MethodDeclarationSyntax GetMethodDeclarationSyntax_ToString(string @string) {
             var builder = new StringBuilder();
             builder.AppendLine( "public override string ToString() {" );
-            builder.AppendLineFormat( "return \"{0}\";", GetStringValue( type, members ) );
+            builder.AppendLineFormat( "return \"{0}\";", @string );
             builder.AppendLine( "}" );
             return (MethodDeclarationSyntax) ParseMemberDeclaration( builder.ToString() )!;
         }
