@@ -39,17 +39,17 @@
 
 
         // SyntaxNode
-        public static bool IsPartial(ClassDeclarationSyntax node) {
-            return node.Modifiers.Any( i => i.Kind() == SyntaxKind.PartialKeyword );
-        }
-        public static bool IsPartial(MethodDeclarationSyntax node) {
-            return node.Modifiers.Any( i => i.Kind() == SyntaxKind.PartialKeyword );
-        }
         public static bool IsStatic(ClassDeclarationSyntax node) {
             return node.Modifiers.Any( i => i.Kind() == SyntaxKind.StaticKeyword );
         }
         public static bool IsStatic(MethodDeclarationSyntax node) {
             return node.Modifiers.Any( i => i.Kind() == SyntaxKind.StaticKeyword );
+        }
+        public static bool IsPartial(ClassDeclarationSyntax node) {
+            return node.Modifiers.Any( i => i.Kind() == SyntaxKind.PartialKeyword );
+        }
+        public static bool IsPartial(MethodDeclarationSyntax node) {
+            return node.Modifiers.Any( i => i.Kind() == SyntaxKind.PartialKeyword );
         }
         public static T CopyAnnotationsFrom<T>(this T node, SyntaxNode other) where T : SyntaxNode {
             return other.CopyAnnotationsTo( node )!;

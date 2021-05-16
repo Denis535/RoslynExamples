@@ -14,61 +14,65 @@ namespace RoslynExamples {
     [Generator]
     public class ExampleSourceGenerator : ISourceGenerator {
 
-        //internal static readonly DiagnosticDescriptor Rule = new DiagnosticDescriptor(
-        //    "ExampleSourceGenerator",
-        //    "ExampleSourceGenerator",
-        //    "Message: {0}",
-        //    "Example",
-        //    DiagnosticSeverity.Error,
-        //    true );
+        private static readonly DiagnosticDescriptor ErrorDiagnosticDescriptor = new DiagnosticDescriptor(
+            "SourceGenerator",
+            "SourceGenerator",
+            "Error: {0}",
+            "Error",
+            DiagnosticSeverity.Error,
+            true );
 
 
         public void Initialize(GeneratorInitializationContext context) {
-            context.RegisterForSyntaxNotifications( new ExampleSyntaxReceiver() );
         }
 
 
         public void Execute(GeneratorExecutionContext context) {
+#if DEBUG
             //Debugger.Launch();
-            var receiver = (ExampleSyntaxReceiver?) context.SyntaxReceiver ?? throw new Exception( "SyntaxReceiver is null" );
-            foreach (var unit in receiver.Units) {
-                var model = context.Compilation.GetSemanticModel( unit.SyntaxTree );
-                var name = GetSourceName( unit );
-                var content = GetSourceContent( unit, model );
-                if (content != null) {
-                    context.AddSource( name, content.NormalizeWhitespace().ToString() );
+#endif
+            var compilation = context.Compilation;
+            var cancellationToken = context.CancellationToken;
+
+            foreach (var tree in compilation.SyntaxTrees) {
+                if (tree.FilePath.Contains( ".nuget" )) continue;
+                if (tree.FilePath.Contains( "\\obj\\Debug\\" )) continue;
+                if (tree.FilePath.Contains( "\\obj\\Release\\" )) continue;
+
+                try {
+                    var model = compilation.GetSemanticModel( tree );
+                    Execute( context, tree, model );
+                } catch (Exception ex) {
+                    context.ReportDiagnostic( Diagnostic.Create( ErrorDiagnosticDescriptor, null, ex.Message ) );
                 }
+            }
+        }
+        private static void Execute(GeneratorExecutionContext context, SyntaxTree tree, SemanticModel model) {
+            var name = GetGeneratedSourceName( tree );
+            var source = GetGeneratedSource( (CompilationUnitSyntax) tree.GetRoot( default ), model );
+            if (source != null) {
+                context.AddSource( name, source );
             }
         }
 
 
         // Helpers
-        private static string GetSourceName(CompilationUnitSyntax node) {
-            return Path.GetFileNameWithoutExtension( node.SyntaxTree.FilePath ) + $".Generated.{Guid.NewGuid()}.cs";
+        private static string GetGeneratedSourceName(SyntaxTree tree) {
+            return Path.GetFileNameWithoutExtension( tree.FilePath ) + $".Generated.{Guid.NewGuid()}.cs";
         }
-        private static CompilationUnitSyntax? GetSourceContent(CompilationUnitSyntax node, SemanticModel model) {
+        private static string? GetGeneratedSource(CompilationUnitSyntax node, SemanticModel model) {
             node = (CompilationUnitSyntax) new ExampleSyntaxProducer0( model ).Visit( node );
             node = (CompilationUnitSyntax) new ExampleSyntaxProducer1().Visit( node );
             node = (CompilationUnitSyntax) new ExampleSyntaxProducer2().Visit( node );
-            if (node.DescendantNodes().OfType<TypeDeclarationSyntax>().Any()) return node;
+            if (node.DescendantNodes().OfType<TypeDeclarationSyntax>().Any()) return node?.NormalizeWhitespace().ToString();
             return null;
         }
 
 
     }
 
-    // Collects CompilationUnitSyntax nodes
-    class ExampleSyntaxReceiver : ISyntaxReceiver {
 
-        public List<CompilationUnitSyntax> Units { get; } = new List<CompilationUnitSyntax>(); // todo: should I use ConcurrentBag???
-
-        void ISyntaxReceiver.OnVisitSyntaxNode(SyntaxNode node) {
-            if (node is CompilationUnitSyntax unit) Units.Add( unit );
-        }
-
-    }
-
-    // Initializes syntax nodes with annotations
+    // Initializes ClassDeclarationSyntax nodes with annotations
     class ExampleSyntaxProducer0 : CSharpSyntaxRewriter {
 
         private SemanticModel Model { get; } = default!;
@@ -85,7 +89,7 @@ namespace RoslynExamples {
         //}
         // Class
         public override SyntaxNode? VisitClassDeclaration(ClassDeclarationSyntax node) {
-            if (ExampleSyntaxProducer1.IsSupported( node )) {
+            if (IsSupported( node )) {
                 var annotation = GetSyntaxAnnotations( node, Model ); // Pass original syntax!!!
                 node = (ClassDeclarationSyntax) base.VisitClassDeclaration( node )!; // Pass original syntax!!!
                 return node.WithAdditionalAnnotations( annotation );
@@ -105,9 +109,12 @@ namespace RoslynExamples {
 
 
         // Helpers
+        internal static bool IsSupported(ClassDeclarationSyntax node) {
+            return !CodeAnalysisUtils.IsStatic( node ) && CodeAnalysisUtils.IsPartial( node );
+        }
         private static IEnumerable<SyntaxAnnotation> GetSyntaxAnnotations(ClassDeclarationSyntax node, SemanticModel model) {
             var type = model.GetDeclaredSymbol( node )!;
-            var members = type.GetMembers().Where( i => i.Kind != SymbolKind.NamedType ).Where( i => i.CanBeReferencedByName ).Where( i => !i.IsImplicitlyDeclared ).ToArray();
+            var members = type.GetMembers().Where( i => i.Kind != SymbolKind.NamedType ).Where( i => i.CanBeReferencedByName ).Where( i => !i.IsImplicitlyDeclared );
             yield return new SyntaxAnnotation( "Type", type.Name );
             foreach (var member in members) {
                 yield return new SyntaxAnnotation( "Type.Member", member.Name );
@@ -126,7 +133,7 @@ namespace RoslynExamples {
             node = CompilationUnit()
                 .WithExterns( node.Externs )
                 .WithUsings( node.Usings )
-                .AddMembers( node.Members.OfType<ClassDeclarationSyntax>().Where( IsSupported ).ToArray() )
+                .AddMembers( node.Members.OfType<ClassDeclarationSyntax>().Where( ExampleSyntaxProducer0.IsSupported ).ToArray() )
                 .AddMembers( node.Members.OfType<NamespaceDeclarationSyntax>().ToArray() );
             return base.VisitCompilationUnit( node );
         }
@@ -135,7 +142,7 @@ namespace RoslynExamples {
             node = NamespaceDeclaration( node.Name )
                 .WithExterns( node.Externs )
                 .WithUsings( node.Usings )
-                .AddMembers( node.Members.OfType<ClassDeclarationSyntax>().Where( IsSupported ).ToArray() );
+                .AddMembers( node.Members.OfType<ClassDeclarationSyntax>().Where( ExampleSyntaxProducer0.IsSupported ).ToArray() );
             return base.VisitNamespaceDeclaration( node );
         }
 
@@ -149,7 +156,7 @@ namespace RoslynExamples {
             node = ClassDeclaration( node.Identifier )
                 .WithModifiers( node.Modifiers )
                 .WithTypeParameterList( node.TypeParameterList )
-                .AddMembers( node.Members.OfType<ClassDeclarationSyntax>().Where( IsSupported ).ToArray() )
+                .AddMembers( node.Members.OfType<ClassDeclarationSyntax>().Where( ExampleSyntaxProducer0.IsSupported ).ToArray() )
                 .CopyAnnotationsFrom( node );
             return base.VisitClassDeclaration( node );
         }
@@ -175,12 +182,6 @@ namespace RoslynExamples {
         //}
 
 
-        // Helpers
-        internal static bool IsSupported(ClassDeclarationSyntax node) {
-            return CodeAnalysisUtils.IsPartial( node ) && !CodeAnalysisUtils.IsStatic( node );
-        }
-
-
     }
 
     // Produces partial classes with additional methods
@@ -193,7 +194,7 @@ namespace RoslynExamples {
         //}
         // Class
         public override SyntaxNode? VisitClassDeclaration(ClassDeclarationSyntax node) {
-            node = node.AddMembers( GetMethodDeclarationSyntax_ToString( node ) );
+            node = node.AddMembers( CreateMethodDeclarationSyntax_ToString( node ) );
             return base.VisitClassDeclaration( node );
         }
         // Struct
@@ -207,12 +208,12 @@ namespace RoslynExamples {
 
 
         // Helpers
-        private static MethodDeclarationSyntax GetMethodDeclarationSyntax_ToString(ClassDeclarationSyntax node) {
+        private static MethodDeclarationSyntax CreateMethodDeclarationSyntax_ToString(ClassDeclarationSyntax node) {
             var type = node.GetAnnotations( "Type" ).Single()!.Data!;
             var members = node.GetAnnotations( "Type.Member" ).Select( i => i.Data! ).ToArray();
-            return GetMethodDeclarationSyntax_ToString( GetStringValue( type, members ) );
+            return CreateMethodDeclarationSyntax_ToString( GetStringValue( type, members ) );
         }
-        private static MethodDeclarationSyntax GetMethodDeclarationSyntax_ToString(string @string) {
+        private static MethodDeclarationSyntax CreateMethodDeclarationSyntax_ToString(string @string) {
             var builder = new StringBuilder();
             builder.AppendLine( "public override string ToString() {" );
             builder.AppendLineFormat( "return \"{0}\";", @string );
