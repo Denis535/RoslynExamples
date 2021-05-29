@@ -91,6 +91,7 @@
     // - OmittedTypeArgumentSyntax - no sense
     // - ArrayTypeSyntax
 
+
     // LiteralExpressionSyntax:
     // - NullLiteralExpression
     // - DefaultLiteralExpression
@@ -152,28 +153,10 @@
         }
 
 
-        // Helpers/Reference
-        private static DependenciesAnalysis.Reference CreateReference(SyntaxNode syntax, SemanticModel model) {
-            var symbol = GetReferenceSymbol( syntax, model );
-            return new DependenciesAnalysis.Reference( syntax, symbol );
-        }
-        private static ISymbol? GetReferenceSymbol(SyntaxNode syntax, SemanticModel model) {
-            // Note: There is no symbol for: Alias, nameof, nameof( Method ), null
-            if (syntax is TypeSyntax) {
-                return model.GetSymbolInfo( syntax ).Symbol;
-            }
-            if (syntax is LiteralExpressionSyntax) {
-                return model.GetTypeInfo( syntax ).Type;
-            }
-            if (syntax is InterpolatedStringExpressionSyntax) {
-                return model.Compilation.GetSpecialType( SpecialType.System_String );
-            }
-            throw new ArgumentException( "SyntaxNode is invalid: " + syntax.Kind() );
-        }
-        // Helpers/SyntaxNode
+        // Helpers/FindReferences
         private static IEnumerable<SyntaxNode> FindReferences(this SyntaxNode syntax) {
             return syntax
-                .DescendantNodes( i => !i.IsReference() || i == syntax )
+                .DescendantNodes( i => i == syntax || !i.IsReference() )
                 .Where( IsReference )
                 .SelectMany( GetSimpleReferences );
         }
@@ -195,8 +178,27 @@
             }
             return syntax.AsEnumerable();
         }
+        // Helpers/CreateReference
+        private static DependenciesAnalysis.Reference CreateReference(SyntaxNode syntax, SemanticModel model) {
+            var symbol = GetReferenceSymbol( syntax, model );
+            return new DependenciesAnalysis.Reference( syntax, symbol );
+        }
+        private static ISymbol? GetReferenceSymbol(SyntaxNode syntax, SemanticModel model) {
+            // Note: There is no symbol for: Alias, nameof, nameof( Method ), null
+            if (syntax is TypeSyntax) {
+                return model.GetSymbolInfo( syntax ).Symbol;
+            }
+            if (syntax is LiteralExpressionSyntax) {
+                return model.GetTypeInfo( syntax ).Type;
+            }
+            if (syntax is InterpolatedStringExpressionSyntax) {
+                return model.Compilation.GetSpecialType( SpecialType.System_String );
+            }
+            throw new ArgumentException( "SyntaxNode is invalid: " + syntax.Kind() );
+        }
 
     }
+    // DependenciesAnalysis
     public partial class DependenciesAnalysis {
 
         public ImmutableArray<Reference> References { get; } = default!;
@@ -206,6 +208,7 @@
         }
 
     }
+    // DependenciesAnalysis.Reference
     public partial class DependenciesAnalysis {
         public class Reference {
             public SyntaxNode Syntax { get; }
@@ -232,7 +235,7 @@
             }
 
 
-            // Helpers/ISymbol
+            // Helpers/GetTypeSymbols
             private static IEnumerable<ITypeSymbol> GetTypeSymbols(ISymbol symbol) {
                 switch (symbol) {
                     case INamespaceSymbol @namespace: {
@@ -281,7 +284,7 @@
                     }
                 }
             }
-            // Helpers/ITypeSymbol
+            // Helpers/GetSimpleTypeSymbols
             private static IEnumerable<ITypeSymbol> GetSimpleTypeSymbols(ITypeSymbol symbol) {
                 switch (symbol) {
                     case INamedTypeSymbol type when type.IsUnboundGenericType: {

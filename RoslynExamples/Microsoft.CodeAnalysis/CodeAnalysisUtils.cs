@@ -11,12 +11,6 @@
     public static class CodeAnalysisUtils {
 
 
-        // GeneratorInitializationContext
-        public static void RegisterForSyntaxNotifications(this GeneratorInitializationContext context, ISyntaxReceiver receiver) {
-            context.RegisterForSyntaxNotifications( () => receiver );
-        }
-
-
         // SemanticModel
         public static IEnumerable<ISymbol> FindSymbols(SemanticModel model, SyntaxNode root, TextSpan span, CancellationToken cancellationToken) {
             var symbols = new HashSet<ISymbol>( SymbolEqualityComparer.Default );
@@ -38,6 +32,12 @@
         }
 
 
+        // ISymbol
+        public static bool CanBeRenamed(this ISymbol symbol) {
+            return symbol.CanBeReferencedByName && !symbol.IsImplicitlyDeclared && symbol.Locations.First().IsInSource;
+        }
+
+
         // SyntaxNode
         public static bool IsStatic(ClassDeclarationSyntax node) {
             return node.Modifiers.Any( i => i.Kind() == SyntaxKind.StaticKeyword );
@@ -53,12 +53,6 @@
         }
         public static T CopyAnnotationsFrom<T>(this T node, SyntaxNode other) where T : SyntaxNode {
             return other.CopyAnnotationsTo( node )!;
-        }
-
-
-        // ISymbol
-        public static bool CanBeRenamed(this ISymbol symbol) {
-            return symbol.CanBeReferencedByName && !symbol.IsImplicitlyDeclared && symbol.Locations.First().IsInSource;
         }
 
 

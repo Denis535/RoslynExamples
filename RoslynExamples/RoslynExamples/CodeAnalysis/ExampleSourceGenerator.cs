@@ -13,6 +13,12 @@ namespace RoslynExamples {
 
     [Generator]
     public class ExampleSourceGenerator : ISourceGenerator {
+        private class SyntaxReceiver : ISyntaxReceiver {
+            public IList<CompilationUnitSyntax> Units { get; } = new List<CompilationUnitSyntax>();
+            public void OnVisitSyntaxNode(SyntaxNode syntax) {
+                if (syntax is CompilationUnitSyntax unit) Units.Add( unit );
+            }
+        }
 
         private static readonly DiagnosticDescriptor ErrorDiagnosticDescriptor = new DiagnosticDescriptor(
             "SourceGenerator",
@@ -24,6 +30,7 @@ namespace RoslynExamples {
 
 
         public void Initialize(GeneratorInitializationContext context) {
+            context.RegisterForSyntaxNotifications( () => new SyntaxReceiver() );
         }
 
 
@@ -32,39 +39,40 @@ namespace RoslynExamples {
             //Debugger.Launch();
 #endif
             var compilation = context.Compilation;
-            var cancellationToken = context.CancellationToken;
-
-            foreach (var tree in compilation.SyntaxTrees) {
-                if (tree.FilePath.Contains( ".nuget" )) continue;
-                if (tree.FilePath.Contains( "\\obj\\Debug\\" )) continue;
-                if (tree.FilePath.Contains( "\\obj\\Release\\" )) continue;
+            var receiver = (SyntaxReceiver) context.SyntaxReceiver!;
+            foreach (var unit in receiver.Units) {
+                if (unit.SyntaxTree.FilePath.Contains( ".nuget" )) continue;
+                if (unit.SyntaxTree.FilePath.Contains( "\\obj\\Debug\\" )) continue;
+                if (unit.SyntaxTree.FilePath.Contains( "\\obj\\Release\\" )) continue;
 
                 try {
-                    var model = compilation.GetSemanticModel( tree );
-                    Execute( context, tree, model );
+                    var model = compilation.GetSemanticModel( unit.SyntaxTree );
+                    Execute( context, unit, model );
                 } catch (Exception ex) {
                     context.ReportDiagnostic( Diagnostic.Create( ErrorDiagnosticDescriptor, null, ex.Message ) );
                 }
             }
         }
-        private static void Execute(GeneratorExecutionContext context, SyntaxTree tree, SemanticModel model) {
-            var name = GetGeneratedSourceName( tree );
-            var source = GetGeneratedSource( (CompilationUnitSyntax) tree.GetRoot( default ), model );
+        private static void Execute(GeneratorExecutionContext context, CompilationUnitSyntax unit, SemanticModel model) {
+            var name = GetGeneratedSourceName( unit );
+            var source = GetGeneratedSource( unit, model );
             if (source != null) {
+                Debug.WriteLine( "Generated source: " + name );
+                Debug.WriteLine( source );
                 context.AddSource( name, source );
             }
         }
 
 
         // Helpers
-        private static string GetGeneratedSourceName(SyntaxTree tree) {
-            return Path.GetFileNameWithoutExtension( tree.FilePath ) + $".Generated.{Guid.NewGuid()}.cs";
+        private static string GetGeneratedSourceName(CompilationUnitSyntax unit) {
+            return Path.GetFileNameWithoutExtension( unit.SyntaxTree.FilePath ) + $".Generated.{Guid.NewGuid()}.cs";
         }
-        private static string? GetGeneratedSource(CompilationUnitSyntax node, SemanticModel model) {
-            node = (CompilationUnitSyntax) new ExampleSyntaxProducer0( model ).Visit( node );
-            node = (CompilationUnitSyntax) new ExampleSyntaxProducer1().Visit( node );
-            node = (CompilationUnitSyntax) new ExampleSyntaxProducer2().Visit( node );
-            if (node.DescendantNodes().OfType<TypeDeclarationSyntax>().Any()) return node?.NormalizeWhitespace().ToString();
+        private static string? GetGeneratedSource(CompilationUnitSyntax unit, SemanticModel model) {
+            unit = (CompilationUnitSyntax) new ExampleSyntaxProducer0( model ).Visit( unit );
+            unit = (CompilationUnitSyntax) new ExampleSyntaxProducer1().Visit( unit );
+            unit = (CompilationUnitSyntax) new ExampleSyntaxProducer2().Visit( unit );
+            if (unit.DescendantNodes().OfType<TypeDeclarationSyntax>().Any()) return unit?.NormalizeWhitespace().ToString();
             return null;
         }
 
